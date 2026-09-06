@@ -1,0 +1,47 @@
+version: 2
+
+project_name: wordly
+
+before:
+  hooks:
+    - go test ./...
+
+builds:
+  - id: wordly
+    main: ./cmd/wordly
+    binary: wordly
+
+    env:
+      - CGO_ENABLED=0
+
+    goos:
+      - linux
+      - darwin
+      - windows
+
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: wordly
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    formats:
+      - tar.gz
+
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: "checksums.txt"
+
+release:
+  github:
+    owner: nikhil25803
+    name: wordly

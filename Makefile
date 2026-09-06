@@ -1,7 +1,29 @@
-.PHONY: build-wordly run-wordly
+BINARY := wordly
+BIN_DIR := bin
 
-build-wordly:
-	go build -o bin/wordly cmd/wordly/main.go
+.PHONY: build run test seed clean check release snapshot
 
-run-wordly:
-	go run cmd/wordly/main.go
+build:
+	go build -o $(BIN_DIR)/$(BINARY) ./cmd/wordly
+
+run:
+	go run ./cmd/wordly
+
+test:
+	go test ./...
+
+seed:
+	./scripts/seed-words.sh
+
+clean:
+	rm -rf $(BIN_DIR)
+	rm -rf dist
+
+check:
+	goreleaser check
+
+release:
+	goreleaser release --clean
+
+snapshot:
+	goreleaser release --snapshot --clean
