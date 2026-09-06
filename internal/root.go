@@ -1,10 +1,14 @@
 package internal
 
 import (
+	"fmt"
 	"os"
 
+	"github.com/nikhil25803/wordly/internal/db"
 	"github.com/spf13/cobra"
 )
+
+var words bool
 
 var rootCmd = &cobra.Command{
 	Use:           "wordly",
@@ -14,8 +18,32 @@ var rootCmd = &cobra.Command{
 	SilenceUsage:  true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 
+		if err := db.ConnectDatabase(); err != nil {
+			return err
+		}
+		defer db.DB.Close()
+
+		if words {
+			count, err := db.GetWordCount()
+			if err != nil {
+				return err
+			}
+
+			fmt.Fprintln(cmd.OutOrStdout(), count)
+			return nil
+		}
+
 		return nil
 	},
+}
+
+func init() {
+	rootCmd.Flags().BoolVar(
+		&words,
+		"words",
+		false,
+		"Show the number of available words",
+	)
 }
 
 func Execute() error {
