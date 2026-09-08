@@ -53,3 +53,12 @@ func GetTodaysPuzzle() (string, error) {
 
 	return word, nil
 }
+
+func StartGame() (string, error) {
+	user, err := db.GetCurrentUser()
+	if err != nil {
+		return "", err
+	}
+
+	return "Game started for user: " + user, nil
+}
