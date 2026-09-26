@@ -5,10 +5,14 @@ import (
 	"os"
 
 	"github.com/nikhil25803/wordly/internal/db"
+	"github.com/nikhil25803/wordly/internal/game"
 	"github.com/spf13/cobra"
 )
 
-var words bool
+var (
+	words bool
+	today bool
+)
 
 var rootCmd = &cobra.Command{
 	Use:           "wordly",
@@ -33,6 +37,16 @@ var rootCmd = &cobra.Command{
 			return nil
 		}
 
+		if today {
+			word, err := game.GetTodaysPuzzle()
+			if err != nil {
+				return err
+			}
+
+			fmt.Fprintln(cmd.OutOrStdout(), word)
+			return nil
+		}
+
 		return nil
 	},
 }
@@ -43,6 +57,13 @@ func init() {
 		"words",
 		false,
 		"Show the number of available words",
+	)
+
+	rootCmd.Flags().BoolVar(
+		&today,
+		"today",
+		false,
+		"Show today's puzzle word",
 	)
 }
 

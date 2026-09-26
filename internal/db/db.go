@@ -36,6 +36,8 @@ func ConnectDatabase() error {
 	if err != nil {
 		return err
 	}
+	// ponytail: one connection avoids competing SQLite writers; use WAL if concurrent throughput matters.
+	db.SetMaxOpenConns(1)
 
 	if err := db.Ping(); err != nil {
 		db.Close()
