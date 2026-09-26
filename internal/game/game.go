@@ -2,56 +2,43 @@ package game
 
 import (
 	"crypto/sha256"
+	"database/sql"
+	"encoding/binary"
+	"errors"
 	"time"
 
 	"github.com/nikhil25803/wordly/internal/db"
 )
 
 func GetTodaysPuzzle() (string, error) {
+	return getPuzzleForDate(time.Now().UTC().Format("2006-01-02"))
+}
 
-	today := time.Now().Format("2006-01-02")
-
-	// If today's puzzle already exists in the database, return it
-	todaysPuzzle, err := db.GetPuzzleWordByDate(today)
+func getPuzzleForDate(date string) (string, error) {
+	puzzle, err := db.GetPuzzleWordByDate(date)
 	if err == nil {
-		return todaysPuzzle, nil
+		return puzzle, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return "", err
 	}
 
 	totalWords, err := db.GetWordCount()
 	if err != nil {
-		return "Not able to get word count", err
+		return "", err
 	}
-
 	if totalWords == 0 {
-		return "No words in the database", nil
+		return "", errors.New("no words in the database")
 	}
 
-	hash := sha256.Sum256([]byte(today))
-
-	wordIndex := int(hash[0]) % totalWords
-
-	var word string
-	err = db.DB.QueryRow(
-		"SELECT word FROM words LIMIT 1 OFFSET ?",
-		wordIndex,
-	).Scan(&word)
-
+	hash := sha256.Sum256([]byte(date))
+	wordIndex := int(binary.BigEndian.Uint64(hash[:8]) % uint64(totalWords))
+	word, err := db.GetWordByIndex(wordIndex)
 	if err != nil {
-		return "Not able to get today's puzzle", err
+		return "", err
 	}
 
-	// Add todays puzzle to the database
-	_, err = db.DB.Exec(
-		"INSERT INTO puzzles (word_id, puzzle_date) VALUES ((SELECT id FROM words WHERE word = ?), ?)",
-		word,
-		today,
-	)
-
-	if err != nil {
-		return "Not able to insert today's puzzle", err
-	}
-
-	return word, nil
+	return db.GetOrCreatePuzzleWord(date, word)
 }
 
 func StartGame() (string, error) {
@@ -60,5 +47,5 @@ func StartGame() (string, error) {
 		return "", err
 	}
 
-	return "Game started for user: " + user, nil
+	return "Game started for user: " + user.Username, nil
 }
