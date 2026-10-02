@@ -91,24 +91,24 @@ func TestWordHandlers(t *testing.T) {
 	}
 }
 
-func TestGetOrCreatePuzzleWordIsIdempotent(t *testing.T) {
+func TestGetOrCreatePuzzleIsIdempotent(t *testing.T) {
 	connectTestDatabase(t)
 
 	const date = "2099-01-01"
-	word, err := GetOrCreatePuzzleWord(date, "which")
+	puzzle, err := GetOrCreatePuzzle(date, "which")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if word != "which" {
-		t.Fatalf("got puzzle word %q, want %q", word, "which")
+	if puzzle.Word != "which" {
+		t.Fatalf("got puzzle word %q, want %q", puzzle.Word, "which")
 	}
 
-	word, err = GetOrCreatePuzzleWord(date, "there")
+	puzzle, err = GetOrCreatePuzzle(date, "there")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if word != "which" {
-		t.Fatalf("existing puzzle changed to %q", word)
+	if puzzle.Word != "which" {
+		t.Fatalf("existing puzzle changed to %q", puzzle.Word)
 	}
 
 	var count int
@@ -126,8 +126,8 @@ func TestGetOrCreatePuzzleWordIsIdempotent(t *testing.T) {
 	results := make(chan result, 2)
 	for _, candidate := range []string{"which", "there"} {
 		go func() {
-			word, err := GetOrCreatePuzzleWord("2099-01-03", candidate)
-			results <- result{word, err}
+			puzzle, err := GetOrCreatePuzzle("2099-01-03", candidate)
+			results <- result{puzzle.Word, err}
 		}()
 	}
 	first := <-results
@@ -139,7 +139,91 @@ func TestGetOrCreatePuzzleWordIsIdempotent(t *testing.T) {
 		t.Fatalf("concurrent puzzle words differ: %q, %q", first.word, second.word)
 	}
 
-	if _, err := GetOrCreatePuzzleWord("2099-01-02", "zzzzz"); !errors.Is(err, sql.ErrNoRows) {
+	if _, err := GetOrCreatePuzzle("2099-01-02", "zzzzz"); !errors.Is(err, sql.ErrNoRows) {
 		t.Fatalf("unknown word error = %v, want sql.ErrNoRows", err)
+	}
+}
+
+func TestGamePersistenceAndReset(t *testing.T) {
+	connectTestDatabase(t)
+
+	currentUser, err := GetCurrentUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	puzzle, err := GetOrCreatePuzzle("2099-05-01", "which")
+	if err != nil {
+		t.Fatal(err)
+	}
+	history, err := GetOrCreateHistory(currentUser.ID, puzzle.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, err := GetOrCreateHistory(currentUser.ID, puzzle.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.ID != history.ID {
+		t.Fatalf("history changed from %d to %d", history.ID, again.ID)
+	}
+
+	if _, err := SaveGuess(history.ID, "there", false); err != nil {
+		t.Fatal(err)
+	}
+	finished, err := SaveGuess(history.ID, "which", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !finished.Guessed || finished.Attempts != 2 {
+		t.Fatalf("finished history = %+v", finished)
+	}
+	if _, err := SaveGuess(history.ID, "their", false); !errors.Is(err, ErrHistoryFinished) {
+		t.Fatalf("finished history accepted guess: %v", err)
+	}
+	guesses, err := GetGuesses(history.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(guesses) != 2 || guesses[0].Word != "there" || guesses[1].Word != "which" {
+		t.Fatalf("saved guesses = %+v", guesses)
+	}
+	results, err := GetResults(currentUser.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || !results[0].Won || results[0].Attempts != 2 {
+		t.Fatalf("saved results = %+v", results)
+	}
+
+	result, err := DB.Exec(
+		"INSERT INTO users (username, registered_at) VALUES (?, ?)",
+		"another-user", "2099-05-01T00:00:00Z",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherUserID, err := result.LastInsertId()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := GetOrCreateHistory(int(otherUserID), puzzle.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ResetUserGames(currentUser.ID); err != nil {
+		t.Fatal(err)
+	}
+	var currentCount, otherCount, userCount int
+	if err := DB.QueryRow("SELECT COUNT(*) FROM history WHERE user_id = ?", currentUser.ID).Scan(&currentCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := DB.QueryRow("SELECT COUNT(*) FROM history WHERE user_id = ?", otherUserID).Scan(&otherCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := DB.QueryRow("SELECT COUNT(*) FROM users WHERE id = ?", currentUser.ID).Scan(&userCount); err != nil {
+		t.Fatal(err)
+	}
+	if currentCount != 0 || otherCount != 1 || userCount != 1 {
+		t.Fatalf("reset counts: current=%d other=%d user=%d", currentCount, otherCount, userCount)
 	}
 }

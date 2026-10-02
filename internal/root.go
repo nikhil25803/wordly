@@ -6,12 +6,14 @@ import (
 
 	"github.com/nikhil25803/wordly/internal/db"
 	"github.com/nikhil25803/wordly/internal/game"
+	"github.com/nikhil25803/wordly/internal/ui"
 	"github.com/spf13/cobra"
 )
 
 var (
 	words bool
-	today bool
+	reset bool
+	stats bool
 )
 
 var rootCmd = &cobra.Command{
@@ -37,17 +39,28 @@ var rootCmd = &cobra.Command{
 			return nil
 		}
 
-		if today {
-			word, err := game.GetTodaysPuzzle()
+		if reset {
+			user, err := game.ResetCurrentUser()
 			if err != nil {
 				return err
 			}
-
-			fmt.Fprintln(cmd.OutOrStdout(), word)
+			fmt.Fprintf(cmd.OutOrStdout(), "Reset stats for %s.\n", user.Username)
+			return nil
+		}
+		if stats {
+			currentStats, err := game.GetCurrentUserStats()
+			if err != nil {
+				return err
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), ui.RenderStats(currentStats))
 			return nil
 		}
 
-		return nil
+		currentGame, err := game.StartGame()
+		if err != nil {
+			return err
+		}
+		return ui.Run(currentGame, cmd.OutOrStdout())
 	},
 }
 
@@ -60,11 +73,18 @@ func init() {
 	)
 
 	rootCmd.Flags().BoolVar(
-		&today,
-		"today",
+		&reset,
+		"reset",
 		false,
-		"Show today's puzzle word",
+		"Reset the current user's game statistics",
 	)
+	rootCmd.Flags().BoolVar(
+		&stats,
+		"stats",
+		false,
+		"Show the current user's game statistics",
+	)
+	rootCmd.MarkFlagsMutuallyExclusive("words", "reset", "stats")
 }
 
 func Execute() error {

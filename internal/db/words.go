@@ -44,21 +44,19 @@ func WordExists(word string) (bool, error) {
 	return exists, err
 }
 
-func GetPuzzleWordByDate(date string) (string, error) {
-	var word string
+func GetPuzzleByDate(date string) (Puzzle, error) {
+	var puzzle Puzzle
 	err := DB.QueryRow(
-		"SELECT w.word FROM puzzles p JOIN words w ON p.word_id = w.id WHERE p.puzzle_date = ?",
+		`SELECT p.id, p.word_id, CAST(p.puzzle_date AS TEXT), w.word
+		 FROM puzzles p JOIN words w ON p.word_id = w.id
+		 WHERE p.puzzle_date = ?`,
 		date,
-	).Scan(&word)
+	).Scan(&puzzle.ID, &puzzle.WordID, &puzzle.PuzzleDate, &puzzle.Word)
 
-	if err != nil {
-		return "", err
-	}
-
-	return word, nil
+	return puzzle, err
 }
 
-func GetOrCreatePuzzleWord(date, word string) (string, error) {
+func GetOrCreatePuzzle(date, word string) (Puzzle, error) {
 	_, err := DB.Exec(
 		`INSERT INTO puzzles (word_id, puzzle_date)
 		 SELECT id, ? FROM words WHERE word = ?
@@ -66,8 +64,8 @@ func GetOrCreatePuzzleWord(date, word string) (string, error) {
 		date, strings.ToLower(strings.TrimSpace(word)),
 	)
 	if err != nil {
-		return "", err
+		return Puzzle{}, err
 	}
 
-	return GetPuzzleWordByDate(date)
+	return GetPuzzleByDate(date)
 }
