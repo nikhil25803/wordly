@@ -6,12 +6,14 @@ on:
       - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
@@ -32,3 +34,42 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  smoke-test:
+    name: Download and run (${{ matrix.name }})
+    needs: release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-latest
+          - name: macOS
+            os: macos-latest
+          - name: Windows
+            os: windows-latest
+    env:
+      WORDLY_RELEASE_URL: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install and run
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          WORDLY_INSTALL_DIR: ${{ runner.temp }}/wordly
+        run: |
+          sh ./install.sh
+          "${WORDLY_INSTALL_DIR}/wordly" --help
+
+      - name: Install and run
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          WORDLY_INSTALL_DIR: ${{ runner.temp }}/wordly
+        run: |
+          ./install.ps1
+          & "$env:WORDLY_INSTALL_DIR/wordly.exe" --help

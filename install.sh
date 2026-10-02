@@ -30,8 +30,9 @@ base_url="${WORDLY_RELEASE_URL:-https://github.com/${repo}/releases/latest/downl
 tmp_dir=$(mktemp -d)
 trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
 
-curl -fsSL "${base_url}/${archive}" -o "${tmp_dir}/${archive}"
-curl -fsSL "${base_url}/checksums.txt" -o "${tmp_dir}/checksums.txt"
+curl -fsSL --retry 3 --retry-delay 1 --connect-timeout 10 \
+  -o "${tmp_dir}/${archive}" "${base_url}/${archive}" \
+  -o "${tmp_dir}/checksums.txt" "${base_url}/checksums.txt"
 
 expected=$(awk -v file="$archive" '$2 == file { print $1 }' "${tmp_dir}/checksums.txt")
 if [ -z "$expected" ]; then

@@ -92,17 +92,34 @@ func TestModelQuitControls(t *testing.T) {
 
 func TestModelLayoutIsLeftAlignedAndGrouped(t *testing.T) {
 	model := setupModel(t)
-	before := model.View().Content
+	compact := model.View().Content
 	updated, _ := model.Update(tea.WindowSizeMsg{Width: 200, Height: 40})
-	after := updated.(Model).View().Content
-	if before != after {
-		t.Fatal("window width changed the left-aligned layout")
+	largeModel := updated.(Model)
+	large := largeModel.View().Content
+	if lipgloss.Height(largeModel.renderBoard()) != game.MaxAttempts*3 {
+		t.Fatal("large terminal did not render three-line tiles")
 	}
-	if strings.Count(after, "·") != game.WordLength*game.MaxAttempts {
+	if width := lipgloss.Width(largeModel.renderBoard()); width != game.WordLength*5+(game.WordLength-1)*2 {
+		t.Fatalf("large board width = %d, want five-column tiles with two-column gaps", width)
+	}
+	if lipgloss.Height(model.renderBoard()) != game.MaxAttempts {
+		t.Fatal("unknown terminal size did not use compact tiles")
+	}
+	updated, _ = model.Update(tea.WindowSizeMsg{Width: 39, Height: 40})
+	if lipgloss.Height(updated.(Model).renderBoard()) != game.MaxAttempts {
+		t.Fatal("narrow terminal did not use compact tiles")
+	}
+	if strings.Count(large, "·") != game.WordLength*game.MaxAttempts {
 		t.Fatal("layout does not contain the complete six-row board")
 	}
-	if len(regexp.MustCompile(`\n +\n`).FindAllString(after, -1)) < 2 {
+	if !strings.HasPrefix(compact, " ") || !strings.HasPrefix(large, " ") {
+		t.Fatal("layout is not left aligned with its one-column margin")
+	}
+	if len(regexp.MustCompile(`\n +\n`).FindAllString(large, -1)) < 2 {
 		t.Fatal("layout is missing blank lines between content groups")
+	}
+	if !strings.Contains(large, "W O R D L Y") {
+		t.Fatal("layout is missing the spaced title")
 	}
 }
 
@@ -151,5 +168,9 @@ func TestStyledStatsAndCompletedLayout(t *testing.T) {
 	}
 	if height := lipgloss.Height(model.View().Content); height > 24 {
 		t.Fatalf("completed layout height = %d, want at most 24", height)
+	}
+	updated, _ := model.Update(tea.WindowSizeMsg{Width: 80, Height: 40})
+	if height := lipgloss.Height(updated.(Model).View().Content); height > 40 {
+		t.Fatalf("large completed layout height = %d, want at most 40", height)
 	}
 }

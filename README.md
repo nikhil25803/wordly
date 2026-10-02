@@ -1,21 +1,140 @@
-# wordly
-Wordly is a terminal-based Wordle game where everyone gets the same word each UTC day. Progress and statistics stay in a local SQLite database tied to your operating-system username—no account or server required.
+<div align="center">
+
+# Wordly
+
+**One shared Wordle every UTC day, played entirely in your terminal.**
+
+[![Go version](https://img.shields.io/github/go-mod/go-version/nikhil25803/wordly?logo=go)](go.mod)
+[![CI](https://github.com/nikhil25803/wordly/actions/workflows/ci.yml/badge.svg)](https://github.com/nikhil25803/wordly/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/nikhil25803/wordly)](https://github.com/nikhil25803/wordly/releases/latest)
+[![License](https://img.shields.io/github/license/nikhil25803/wordly)](LICENSE)
+[![Bubble Tea](https://img.shields.io/badge/Bubble_Tea-v2-ff69b4)](https://github.com/charmbracelet/bubbletea)
+[![Lip Gloss](https://img.shields.io/badge/Lip_Gloss-v2-7d56f4)](https://github.com/charmbracelet/lipgloss)
+
+![A completed Wordly game in the terminal](docs/assets/gameplay.svg)
+
+</div>
+
+## Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Install](#install)
+- [Commands](#commands)
+- [Controls](#controls)
+- [Supported platforms](#supported-platforms)
+- [Local data](#local-data)
+- [Development](#development)
+- [Releases](#releases)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Overview
+
+Wordly is a daily, six-attempt word game for the command line. Everyone receives the same puzzle for the UTC calendar day. Accepted guesses, unfinished progress, and statistics are saved locally for the current operating-system user—there is no account, network service, or telemetry.
+
+## Features
+
+- Responsive Bubble Tea interface with accessible color and text styling
+- Correct handling of repeated letters
+- Dictionary validation without consuming an attempt for invalid guesses
+- Automatic resume of submitted guesses
+- Daily and all-time win statistics with streaks and guess distribution
+- SQLite persistence embedded with the application
 
 ## Install
+
+### macOS, Linux, or Windows Git Bash
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/nikhil25803/wordly/main/install.sh | sh
 ```
 
-The installer supports macOS, Linux, and Windows from a POSIX shell such as Git Bash. It installs to `~/.local/bin` by default; set `WORDLY_INSTALL_DIR` to choose another directory.
+### Windows PowerShell
 
-## Play
+```powershell
+curl.exe -fsSL https://raw.githubusercontent.com/nikhil25803/wordly/main/install.ps1 | Out-String | Invoke-Expression
+```
 
-Run `wordly`, type a five-letter word, and press Enter. Correct letters are bold and green, present letters are underlined and yellow, and absent letters are dim and gray. You have six attempts; submitted guesses resume if you leave and return later.
+Both installers detect the operating system and architecture, download the latest release with curl, verify its SHA-256 checksum, and install it to `~/.local/bin` by default.
 
-- Backspace: remove a letter
-- Enter: submit a guess
-- Esc or Ctrl+C: quit and keep submitted progress
-- Enter or q: quit after the game finishes
+To choose another directory:
 
-Use `wordly --stats` to print the current user's statistics without launching the game. Use `wordly --reset` to clear the current user's game history and statistics; the dictionary and daily puzzles are preserved. Use `wordly --words` to print the dictionary size.
+```sh
+curl -fsSL https://raw.githubusercontent.com/nikhil25803/wordly/main/install.sh | WORDLY_INSTALL_DIR="$HOME/bin" sh
+```
+
+```powershell
+$env:WORDLY_INSTALL_DIR = "$HOME\bin"
+curl.exe -fsSL https://raw.githubusercontent.com/nikhil25803/wordly/main/install.ps1 | Out-String | Invoke-Expression
+```
+
+Ensure the selected directory is on your `PATH`, then launch the game with `wordly`.
+
+## Commands
+
+| Command | Purpose | Example |
+| --- | --- | --- |
+| `wordly --help` | Show CLI usage and available flags. | <img src="docs/assets/help.svg" alt="wordly help output" width="440"> |
+| `wordly --stats` | Print the current user's completed-game statistics without starting the TUI. | <img src="docs/assets/stats.svg" alt="wordly stats output" width="440"> |
+| `wordly --words` | Print the number of words in the embedded dictionary. | <img src="docs/assets/words.svg" alt="wordly word count output" width="440"> |
+| `wordly --reset` | Delete only the current user's guesses and game history. | <img src="docs/assets/reset.svg" alt="wordly reset output" width="440"> |
+
+`--stats`, `--words`, and `--reset` are mutually exclusive. Running `wordly` without a flag opens or resumes today's game.
+
+## Controls
+
+| Key | Action |
+| --- | --- |
+| Letters | Fill the current five-letter guess |
+| Backspace | Remove the last letter |
+| Enter | Submit a complete guess |
+| Esc or Ctrl+C | Quit while preserving submitted guesses |
+| Enter or q | Exit after a completed game |
+
+Correct letters are **bold and green**, present letters are <u>underlined and yellow</u>, and absent letters are dim and gray. The legend remains visible so meaning is not conveyed by color alone.
+
+## Supported platforms
+
+| Operating system | Architectures | Archive | Installer |
+| --- | --- | --- | --- |
+| Linux | amd64, arm64 | `.tar.gz` | POSIX shell |
+| macOS | amd64, arm64 | `.tar.gz` | POSIX shell |
+| Windows | amd64, arm64 | `.zip` | PowerShell or Git Bash |
+
+## Local data
+
+Wordly stores one SQLite database in the operating system's user configuration directory:
+
+| Platform | Default location |
+| --- | --- |
+| Linux | `$XDG_CONFIG_HOME/wordly/wordly.db` or `~/.config/wordly/wordly.db` |
+| macOS | `~/Library/Application Support/wordly/wordly.db` |
+| Windows | `%AppData%\wordly\wordly.db` |
+
+`wordly --reset` removes the current user's gameplay records while preserving the user registration, dictionary, and daily puzzles.
+
+## Development
+
+Wordly requires the Go version declared in [go.mod](go.mod).
+
+```sh
+go test ./...
+go test -race ./...
+go vet ./...
+go run ./cmd/wordly
+```
+
+Create a local release snapshot with `goreleaser release --snapshot --clean`.
+
+## Releases
+
+Tagged releases are built for every supported platform by GoReleaser. Each release includes `checksums.txt`; the installation scripts verify the selected archive before extracting it. Archives are available from the [latest release](https://github.com/nikhil25803/wordly/releases/latest).
+
+## Contributing
+
+Bug reports and focused pull requests are welcome through [GitHub Issues](https://github.com/nikhil25803/wordly/issues). Run the development checks above before opening a pull request.
+
+## License
+
+Wordly is available under the [MIT License](LICENSE).

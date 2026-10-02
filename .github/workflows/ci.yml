@@ -12,32 +12,22 @@ permissions:
   contents: read
 
 jobs:
-  platform-test:
-    name: CLI (${{ matrix.os }})
+  test:
+    name: Test, build, and run (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Go
-        uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Run word count
-        run: go run cmd/wordly/main.go --words
-
-  test:
-    name: Test
-    runs-on: ubuntu-latest
+        include:
+          - name: Linux
+            os: ubuntu-latest
+            binary: ./wordly
+          - name: macOS
+            os: macos-latest
+            binary: ./wordly
+          - name: Windows
+            os: windows-latest
+            binary: ./wordly.exe
 
     steps:
       - name: Checkout
@@ -52,17 +42,8 @@ jobs:
       - name: Test
         run: go test ./...
 
-      - name: Build release snapshot
-        uses: goreleaser/goreleaser-action@v7
-        with:
-          version: "~> v2"
-          args: release --snapshot --clean
+      - name: Build
+        run: go build -o ${{ matrix.binary }} ./cmd/wordly
 
-      - name: Test installer
-        env:
-          WORDLY_RELEASE_URL: file://${{ github.workspace }}/dist
-          WORDLY_INSTALL_DIR: ${{ runner.temp }}/wordly/bin
-          WORDLY_DB: ${{ runner.temp }}/wordly/data/wordly.db
-        run: |
-          ./install.sh
-          test "$("$WORDLY_INSTALL_DIR/wordly" --words)" = 5757
+      - name: Run
+        run: ${{ matrix.binary }} --help
