@@ -12,7 +12,7 @@ import (
 
 var (
 	titleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#6AAA64"))
-	tileStyle  = lipgloss.NewStyle().Width(3).Align(lipgloss.Center).
+	tileStyle  = lipgloss.NewStyle().Width(5).Align(lipgloss.Center).
 			Foreground(lipgloss.Color("#FFFFFF")).Background(lipgloss.Color("#374151"))
 	correctStyle = tileStyle.Copy().Bold(true).Foreground(lipgloss.Color("#FFFFFF")).
 			Background(lipgloss.Color("#6AAA64"))
@@ -32,6 +32,8 @@ type Model struct {
 	game    *game.Game
 	input   string
 	message string
+	width   int
+	height  int
 }
 
 func NewModel(currentGame *game.Game) Model {
@@ -47,6 +49,9 @@ func (m Model) Init() tea.Cmd { return nil }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
 	case tea.KeyPressMsg:
 		key := msg.String()
 		if key == "ctrl+c" || key == "esc" {
@@ -89,7 +94,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() tea.View {
-	header := titleStyle.Render("WORDLY") + "\n" +
+	header := titleStyle.Render("W O R D L Y") + "\n" +
 		mutedStyle.Render(m.game.PuzzleDate+"  •  "+m.game.User.Username)
 	sections := []string{
 		header,
@@ -103,32 +108,43 @@ func (m Model) View() tea.View {
 }
 
 func (m Model) renderBoard() string {
+	large := m.width >= 40 && m.height >= 36
 	rows := make([]string, game.MaxAttempts)
 	for row := 0; row < game.MaxAttempts; row++ {
 		tiles := make([]string, game.WordLength)
 		for column := 0; column < game.WordLength; column++ {
 			letter := "·"
-			style := tileStyle
+			style := tileStyleFor(tileStyle, large)
 			if row < len(m.game.Guesses) {
 				tile := m.game.Guesses[row].Tiles[column]
 				letter = strings.ToUpper(string(tile.Letter))
 				switch tile.State {
 				case game.Correct:
-					style = correctStyle
+					style = tileStyleFor(correctStyle, large)
 				case game.Present:
-					style = presentStyle
+					style = tileStyleFor(presentStyle, large)
 				default:
-					style = absentStyle
+					style = tileStyleFor(absentStyle, large)
 				}
 			} else if row == len(m.game.Guesses) && column < len(m.input) && !m.game.Done {
 				letter = strings.ToUpper(string(m.input[column]))
-				style = tileStyle.Copy().Bold(true)
+				style = tileStyleFor(tileStyle.Copy().Bold(true), large)
+			}
+			if column < game.WordLength-1 {
+				style = style.MarginRight(2)
 			}
 			tiles[column] = style.Render(letter)
 		}
-		rows[row] = strings.Join(tiles, " ")
+		rows[row] = lipgloss.JoinHorizontal(lipgloss.Top, tiles...)
 	}
 	return lipgloss.JoinVertical(lipgloss.Center, rows...)
+}
+
+func tileStyleFor(style lipgloss.Style, large bool) lipgloss.Style {
+	if large {
+		return style.Padding(1, 0)
+	}
+	return style
 }
 
 func (m Model) renderStatus() string {

@@ -11,33 +11,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  platform-test:
-    name: CLI (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Go
-        uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Run word count
-        run: go run cmd/wordly/main.go --words
-
-  test:
-    name: Test
+  quality:
+    name: Quality
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -52,17 +34,147 @@ jobs:
       - name: Test
         run: go test ./...
 
+      - name: Repeat persistence tests
+        run: go test -count=3 ./internal/db ./internal/game
+
+      - name: Race test
+        run: go test -race ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build -o "${RUNNER_TEMP}/wordly" ./cmd/wordly
+
+  snapshot:
+    name: Release snapshot
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
       - name: Build release snapshot
         uses: goreleaser/goreleaser-action@v7
         with:
           version: "~> v2"
           args: release --snapshot --clean
 
-      - name: Test installer
+      - name: Upload release archives
+        uses: actions/upload-artifact@v7
+        with:
+          name: wordly-snapshot
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/checksums.txt
+          if-no-files-found: error
+          retention-days: 1
+
+  installer:
+    name: Install (${{ matrix.name }})
+    needs: snapshot
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-latest
+            installer: posix
+          - name: macOS
+            os: macos-latest
+            installer: posix
+          - name: Windows PowerShell
+            os: windows-latest
+            installer: powershell
+          - name: Windows Git Bash
+            os: windows-latest
+            installer: posix
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download release archives
+        uses: actions/download-artifact@v8
+        with:
+          name: wordly-snapshot
+          path: dist
+
+      - name: Serve release archives (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          cd dist
+          python3 -m http.server 8765 > "${RUNNER_TEMP}/wordly-http.log" 2>&1 &
+
+      - name: Serve release archives (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Start-Process python -ArgumentList "-m", "http.server", "8765" -WorkingDirectory dist
+
+      - name: Wait for archive server
+        shell: bash
+        run: curl -fsS --retry 10 --retry-delay 1 http://127.0.0.1:8765/checksums.txt -o "${RUNNER_TEMP}/checksums.txt"
+
+      - name: Test POSIX installer
+        if: matrix.installer == 'posix'
+        shell: bash
         env:
-          WORDLY_RELEASE_URL: file://${{ github.workspace }}/dist
+          WORDLY_RELEASE_URL: http://127.0.0.1:8765
           WORDLY_INSTALL_DIR: ${{ runner.temp }}/wordly/bin
           WORDLY_DB: ${{ runner.temp }}/wordly/data/wordly.db
         run: |
-          ./install.sh
-          test "$("$WORDLY_INSTALL_DIR/wordly" --words)" = 5757
+          sh ./install.sh
+          binary=wordly
+          if [ "${RUNNER_OS}" = Windows ]; then binary=wordly.exe; fi
+          "${WORDLY_INSTALL_DIR}/${binary}" --help
+          test "$("${WORDLY_INSTALL_DIR}/${binary}" --words)" = 5757
+
+      - name: Test PowerShell installer
+        if: matrix.installer == 'powershell'
+        shell: pwsh
+        env:
+          WORDLY_RELEASE_URL: http://127.0.0.1:8765
+          WORDLY_INSTALL_DIR: ${{ runner.temp }}/wordly/bin
+          WORDLY_DB: ${{ runner.temp }}/wordly/data/wordly.db
+        run: |
+          ./install.ps1
+          & "$env:WORDLY_INSTALL_DIR/wordly.exe" --help
+          if ((& "$env:WORDLY_INSTALL_DIR/wordly.exe" --words) -ne "5757") {
+            throw "Unexpected dictionary count"
+          }
+
+      - name: Reject a bad Windows checksum
+        if: matrix.installer == 'powershell'
+        shell: pwsh
+        env:
+          WORDLY_RELEASE_URL: http://127.0.0.1:8765
+          WORDLY_INSTALL_DIR: ${{ runner.temp }}/wordly/bad-checksum
+        run: |
+          $archive = "wordly_windows_amd64.zip"
+          $replacement = ("0" * 64) + "  " + $archive
+          (Get-Content dist/checksums.txt) |
+            ForEach-Object { if ($_ -match ([regex]::Escape($archive) + '$')) { $replacement } else { $_ } } |
+            Set-Content dist/checksums.txt
+          try {
+            ./install.ps1
+            throw "Installer accepted a bad checksum"
+          } catch {
+            if ($_.Exception.Message -ne "Checksum verification failed") {
+              throw
+            }
+          }

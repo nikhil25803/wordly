@@ -18,8 +18,8 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:           "wordly",
-	Short:         "Wordly is a terminal based wordle",
-	Long:          `Wordly is a terminal based wordle game. It is a clone of the popular wordle game, but it is played in the terminal.`,
+	Short:         "Play the daily Wordle in your terminal",
+	Long:          `Wordly is a local, terminal-based Wordle game with one shared puzzle each UTC day.`,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	RunE: func(cmd *cobra.Command, args []string) error {
