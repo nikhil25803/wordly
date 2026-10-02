@@ -20,7 +20,7 @@ func createTables() error {
 	if err := createGuessesTable(); err != nil {
 		return err
 	}
-	return nil
+	return createGameIndexes()
 }
 
 /*
@@ -124,5 +124,15 @@ func createGuessesTable() error {
 		);
 	`)
 
+	return err
+}
+
+func createGameIndexes() error {
+	_, err := DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS history_user_puzzle
+		ON history (user_id, puzzle_id);
+		CREATE UNIQUE INDEX IF NOT EXISTS guesses_history_attempt
+		ON guesses (history_id, attempt_number);
+	`)
 	return err
 }

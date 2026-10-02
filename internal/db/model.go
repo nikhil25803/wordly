@@ -9,6 +9,7 @@ type Puzzle struct {
 	ID         int
 	WordID     int
 	PuzzleDate string
+	Word       string
 }
 
 type User struct {
@@ -31,4 +32,10 @@ type Guess struct {
 	HistoryID     int
 	AttemptNumber int
 	Word          string
+}
+
+type Result struct {
+	PuzzleDate string
+	Won        bool
+	Attempts   int
 }

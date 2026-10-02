@@ -43,10 +43,18 @@ func ConnectDatabase() error {
 		db.Close()
 		return err
 	}
+	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		db.Close()
+		return err
+	}
 
 	DB = db
 
-	return createTables()
+	if err := createTables(); err != nil {
+		db.Close()
+		return err
+	}
+	return nil
 }
 
 func databasePath() (string, error) {

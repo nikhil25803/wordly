@@ -3,6 +3,7 @@ package game
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
@@ -23,15 +24,15 @@ func TestGetPuzzleForDate(t *testing.T) {
 	setupTestDatabase(t)
 
 	const existingDate = "2099-01-01"
-	if _, err := db.GetOrCreatePuzzleWord(existingDate, "which"); err != nil {
+	if _, err := db.GetOrCreatePuzzle(existingDate, "which"); err != nil {
 		t.Fatal(err)
 	}
-	word, err := getPuzzleForDate(existingDate)
+	puzzle, err := getPuzzleForDate(existingDate)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if word != "which" {
-		t.Fatalf("got existing puzzle %q, want %q", word, "which")
+	if puzzle.Word != "which" {
+		t.Fatalf("got existing puzzle %q, want %q", puzzle.Word, "which")
 	}
 
 	count, err := db.GetWordCount()
@@ -56,20 +57,145 @@ func TestGetPuzzleForDate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dateString := date.Format("2006-01-02")
-	word, err = getPuzzleForDate(dateString)
+	puzzle, err = getPuzzleForDate(date.Format("2006-01-02"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if word != want {
-		t.Fatalf("puzzle for %s = %q, want index %d (%q)", dateString, word, index, want)
+	if puzzle.Word != want {
+		t.Fatalf("puzzle = %q, want index %d (%q)", puzzle.Word, index, want)
+	}
+}
+
+func TestEvaluateGuessHandlesDuplicateLetters(t *testing.T) {
+	guess := evaluateGuess("apple", "alley")
+	want := [...]LetterState{Correct, Present, Absent, Present, Absent}
+	for i, state := range want {
+		if guess.Tiles[i].State != state {
+			t.Errorf("tile %d state = %v, want %v", i, guess.Tiles[i].State, state)
+		}
+	}
+}
+
+func TestGameValidationResumeAndWin(t *testing.T) {
+	setupTestDatabase(t)
+	const date = "2099-02-01"
+	if _, err := db.GetOrCreatePuzzle(date, "which"); err != nil {
+		t.Fatal(err)
 	}
 
-	again, err := getPuzzleForDate(dateString)
+	current, err := startGameForDate(date)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if again != word {
-		t.Fatalf("puzzle changed from %q to %q", word, again)
+	if current.Answer() != "" {
+		t.Fatal("answer was revealed before completion")
+	}
+	if err := current.SubmitGuess("bad"); !errors.Is(err, ErrGuessLength) {
+		t.Fatalf("short guess error = %v, want ErrGuessLength", err)
+	}
+	if err := current.SubmitGuess("ZZZZZ"); !errors.Is(err, ErrWordNotFound) {
+		t.Fatalf("unknown guess error = %v, want ErrWordNotFound", err)
+	}
+	if len(current.Guesses) != 0 {
+		t.Fatalf("invalid guesses consumed %d attempts", len(current.Guesses))
+	}
+	if err := current.SubmitGuess(" THERE "); err != nil {
+		t.Fatal(err)
+	}
+
+	resumed, err := startGameForDate(date)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resumed.Guesses) != 1 || resumed.Guesses[0].Word != "there" {
+		t.Fatalf("resumed guesses = %+v, want [there]", resumed.Guesses)
+	}
+	if err := resumed.SubmitGuess("which"); err != nil {
+		t.Fatal(err)
+	}
+	if !resumed.Done || !resumed.Won || resumed.Answer() != "which" {
+		t.Fatalf("completed game = done:%v won:%v answer:%q", resumed.Done, resumed.Won, resumed.Answer())
+	}
+	if resumed.Stats.Played != 1 || resumed.Stats.Wins != 1 || resumed.Stats.Distribution[1] != 1 {
+		t.Fatalf("unexpected stats: %+v", resumed.Stats)
+	}
+	if err := resumed.SubmitGuess("their"); !errors.Is(err, ErrGameFinished) {
+		t.Fatalf("post-game error = %v, want ErrGameFinished", err)
+	}
+
+	reopened, err := startGameForDate(date)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reopened.Done || len(reopened.Guesses) != 2 {
+		t.Fatalf("reopened game = done:%v guesses:%d", reopened.Done, len(reopened.Guesses))
+	}
+}
+
+func TestGameLossAfterSixGuesses(t *testing.T) {
+	setupTestDatabase(t)
+	const date = "2099-03-01"
+	if _, err := db.GetOrCreatePuzzle(date, "which"); err != nil {
+		t.Fatal(err)
+	}
+	current, err := startGameForDate(date)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, word := range []string{"there", "their", "about", "would", "these", "other"} {
+		if err := current.SubmitGuess(word); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !current.Done || current.Won || current.Answer() != "which" {
+		t.Fatalf("lost game = done:%v won:%v answer:%q", current.Done, current.Won, current.Answer())
+	}
+	if current.Stats.Played != 1 || current.Stats.Wins != 0 {
+		t.Fatalf("unexpected loss stats: %+v", current.Stats)
+	}
+}
+
+func TestCalculateStats(t *testing.T) {
+	results := []db.Result{
+		{PuzzleDate: "2099-04-01", Won: true, Attempts: 2},
+		{PuzzleDate: "2099-04-02", Won: true, Attempts: 3},
+		{PuzzleDate: "2099-04-04", Won: true, Attempts: 1},
+		{PuzzleDate: "2099-04-05", Won: false, Attempts: 6},
+		{PuzzleDate: "2099-04-06", Won: true, Attempts: 4},
+	}
+	stats := calculateStats(results, "2099-04-06")
+	if stats.Played != 5 || stats.Wins != 4 || stats.WinPercentage != 80 {
+		t.Fatalf("unexpected totals: %+v", stats)
+	}
+	if stats.CurrentStreak != 1 || stats.MaxStreak != 2 {
+		t.Fatalf("unexpected streaks: %+v", stats)
+	}
+	if stats.Distribution != [MaxAttempts]int{1, 1, 1, 1, 0, 0} {
+		t.Fatalf("unexpected distribution: %v", stats.Distribution)
+	}
+	if stale := calculateStats(results, "2099-04-07"); stale.CurrentStreak != 0 {
+		t.Fatalf("missed day retained current streak: %+v", stale)
+	}
+}
+
+func TestGetCurrentUserStatsDoesNotStartGame(t *testing.T) {
+	setupTestDatabase(t)
+
+	stats, err := GetCurrentUserStats()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats != (Stats{}) {
+		t.Fatalf("empty stats = %+v, want zero values", stats)
+	}
+
+	for _, table := range []string{"puzzles", "history"} {
+		var count int
+		if err := db.DB.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		if count != 0 {
+			t.Fatalf("--stats behavior created %d rows in %s", count, table)
+		}
 	}
 }
