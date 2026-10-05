@@ -11,9 +11,9 @@
 [![Bubble Tea](https://img.shields.io/badge/Bubble_Tea-v2-ff69b4)](https://github.com/charmbracelet/bubbletea)
 [![Lip Gloss](https://img.shields.io/badge/Lip_Gloss-v2-7d56f4)](https://github.com/charmbracelet/lipgloss)
 
-![A completed Wordly game in the terminal](docs/assets/gameplay.svg)
-
 </div>
+
+![Wordly terminal game banner](docs/assets/Banner.png)
 
 ## Contents
 
@@ -73,44 +73,44 @@ Ensure the selected directory is on your `PATH`, then launch the game with `word
 
 ## Commands
 
-| Command | Purpose | Example |
-| --- | --- | --- |
-| `wordly --help` | Show CLI usage and available flags. | <img src="docs/assets/help.svg" alt="wordly help output" width="440"> |
-| `wordly --stats` | Print the current user's completed-game statistics without starting the TUI. | <img src="docs/assets/stats.svg" alt="wordly stats output" width="440"> |
-| `wordly --words` | Print the number of words in the embedded dictionary. | <img src="docs/assets/words.svg" alt="wordly word count output" width="440"> |
-| `wordly --reset` | Delete only the current user's guesses and game history. | <img src="docs/assets/reset.svg" alt="wordly reset output" width="440"> |
+| Command          | Purpose                                                                      | Example                                                                      |
+| ---------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `wordly --help`  | Show CLI usage and available flags.                                          | <img src="docs/assets/help.svg" alt="wordly help output" width="440">        |
+| `wordly --stats` | Print the current user's completed-game statistics without starting the TUI. | <img src="docs/assets/stats.svg" alt="wordly stats output" width="440">      |
+| `wordly --words` | Print the number of words in the embedded dictionary.                        | <img src="docs/assets/words.svg" alt="wordly word count output" width="440"> |
+| `wordly --reset` | Delete only the current user's guesses and game history.                     | <img src="docs/assets/reset.svg" alt="wordly reset output" width="440">      |
 
 `--stats`, `--words`, and `--reset` are mutually exclusive. Running `wordly` without a flag opens or resumes today's game.
 
 ## Controls
 
-| Key | Action |
-| --- | --- |
-| Letters | Fill the current five-letter guess |
-| Backspace | Remove the last letter |
-| Enter | Submit a complete guess |
+| Key           | Action                                  |
+| ------------- | --------------------------------------- |
+| Letters       | Fill the current five-letter guess      |
+| Backspace     | Remove the last letter                  |
+| Enter         | Submit a complete guess                 |
 | Esc or Ctrl+C | Quit while preserving submitted guesses |
-| Enter or q | Exit after a completed game |
+| Enter or q    | Exit after a completed game             |
 
 Correct letters are **bold and green**, present letters are <u>underlined and yellow</u>, and absent letters are dim and gray. The legend remains visible so meaning is not conveyed by color alone.
 
 ## Supported platforms
 
-| Operating system | Architectures | Archive | Installer |
-| --- | --- | --- | --- |
-| Linux | amd64, arm64 | `.tar.gz` | POSIX shell |
-| macOS | amd64, arm64 | `.tar.gz` | POSIX shell |
-| Windows | amd64, arm64 | `.zip` | PowerShell or Git Bash |
+| Operating system | Architectures | Archive   | Installer              |
+| ---------------- | ------------- | --------- | ---------------------- |
+| Linux            | amd64, arm64  | `.tar.gz` | POSIX shell            |
+| macOS            | amd64, arm64  | `.tar.gz` | POSIX shell            |
+| Windows          | amd64, arm64  | `.zip`    | PowerShell or Git Bash |
 
 ## Local data
 
 Wordly stores one SQLite database in the operating system's user configuration directory:
 
-| Platform | Default location |
-| --- | --- |
-| Linux | `$XDG_CONFIG_HOME/wordly/wordly.db` or `~/.config/wordly/wordly.db` |
-| macOS | `~/Library/Application Support/wordly/wordly.db` |
-| Windows | `%AppData%\wordly\wordly.db` |
+| Platform | Default location                                                    |
+| -------- | ------------------------------------------------------------------- |
+| Linux    | `$XDG_CONFIG_HOME/wordly/wordly.db` or `~/.config/wordly/wordly.db` |
+| macOS    | `~/Library/Application Support/wordly/wordly.db`                    |
+| Windows  | `%AppData%\wordly\wordly.db`                                        |
 
 `wordly --reset` removes the current user's gameplay records while preserving the user registration, dictionary, and daily puzzles.
 
