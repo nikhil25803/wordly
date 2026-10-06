@@ -98,7 +98,7 @@ func (m Model) View() tea.View {
 		mutedStyle.Render(m.game.PuzzleDate+"  •  "+m.game.User.Username)
 	sections := []string{
 		header,
-		m.renderBoard(),
+		m.renderPlayArea(),
 		m.renderStatus(),
 	}
 	content := lipgloss.NewStyle().Padding(1).Render(strings.Join(sections, "\n\n"))
@@ -107,8 +107,12 @@ func (m Model) View() tea.View {
 	return view
 }
 
+func (m Model) renderPlayArea() string {
+	return m.renderBoard() + "\n\n" + m.renderKeyboard()
+}
+
 func (m Model) renderBoard() string {
-	large := m.width >= 40 && m.height >= 36
+	large := m.useLargeGrid()
 	rows := make([]string, game.MaxAttempts)
 	for row := 0; row < game.MaxAttempts; row++ {
 		tiles := make([]string, game.WordLength)
@@ -140,6 +144,14 @@ func (m Model) renderBoard() string {
 	return lipgloss.JoinVertical(lipgloss.Center, rows...)
 }
 
+func (m Model) useLargeGrid() bool {
+	minimumHeight := 48
+	if m.game.Done {
+		minimumHeight = 58
+	}
+	return m.width >= 40 && m.height >= minimumHeight
+}
+
 func tileStyleFor(style lipgloss.Style, large bool) lipgloss.Style {
 	if large {
 		return style.Padding(1, 0)
@@ -147,8 +159,55 @@ func tileStyleFor(style lipgloss.Style, large bool) lipgloss.Style {
 	return style
 }
 
+func (m Model) renderKeyboard() string {
+	used := usedLetters(m.game.Guesses)
+	large := m.useLargeGrid()
+	letters := "qwertyuiopasdfghjklzxcvbnm"
+	rows := make([]string, 0, 6)
+	for start := 0; start < len(letters); start += game.WordLength {
+		keys := make([]string, game.WordLength)
+		for column := 0; column < game.WordLength; column++ {
+			index := start + column
+			style := tileStyleFor(lipgloss.NewStyle().Width(5), large)
+			letter := ""
+			if index < len(letters) {
+				key := letters[index]
+				letter = strings.ToUpper(string(key))
+				style = keyboardKeyStyle(used[key], large)
+			}
+			if column < game.WordLength-1 {
+				style = style.MarginRight(2)
+			}
+			keys[column] = style.Render(letter)
+		}
+		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, keys...))
+	}
+	return lipgloss.JoinVertical(lipgloss.Left, rows...)
+}
+
+func usedLetters(guesses []game.EvaluatedGuess) map[byte]bool {
+	used := make(map[byte]bool)
+	for _, guess := range guesses {
+		for _, tile := range guess.Tiles {
+			if tile.Letter < 'a' || tile.Letter > 'z' {
+				continue
+			}
+			used[tile.Letter] = true
+		}
+	}
+	return used
+}
+
+func keyboardKeyStyle(used, large bool) lipgloss.Style {
+	style := tileStyle
+	if used {
+		style = absentStyle
+	}
+	return tileStyleFor(style, large)
+}
+
 func (m Model) renderStatus() string {
-	legend := mutedStyle.Render("bold=correct  underline=present  dim=absent")
+	legend := mutedStyle.Render("tiles: bold=correct  underline=present  dim=absent\nkeyboard: dim=used")
 	if m.game.Done {
 		result := "Not quite."
 		if m.game.Won {

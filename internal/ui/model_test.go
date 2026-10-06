@@ -48,6 +48,9 @@ func TestModelInputAndValidation(t *testing.T) {
 	if model.input != "qwert" {
 		t.Fatalf("input = %q, want qwert", model.input)
 	}
+	if len(usedLetters(model.game.Guesses)) != 0 {
+		t.Fatal("unsubmitted input changed keyboard state")
+	}
 
 	model, _ = pressKey(t, model, tea.KeyBackspace)
 	if model.input != "qwer" {
@@ -67,8 +70,111 @@ func TestModelInputAndValidation(t *testing.T) {
 	if model.message != game.ErrWordNotFound.Error() || len(model.game.Guesses) != 0 {
 		t.Fatalf("unknown guess = message:%q attempts:%d", model.message, len(model.game.Guesses))
 	}
+	if len(usedLetters(model.game.Guesses)) != 0 {
+		t.Fatal("invalid guess changed keyboard state")
+	}
 	if !strings.Contains(model.View().Content, "bold=correct") {
 		t.Fatal("view is missing the non-color tile legend")
+	}
+	if !strings.Contains(model.View().Content, "keyboard: dim=used") {
+		t.Fatal("view is missing the non-color keyboard legend")
+	}
+}
+
+func TestKeyboardMarksAcceptedLettersUsed(t *testing.T) {
+	guesses := []game.EvaluatedGuess{
+		{Tiles: [game.WordLength]game.Tile{
+			{Letter: 'a', State: game.Absent},
+			{Letter: 'b', State: game.Correct},
+			{Letter: 'c', State: game.Present},
+			{Letter: 'd', State: game.Absent},
+			{Letter: 'a', State: game.Present},
+		}},
+		{Tiles: [game.WordLength]game.Tile{
+			{Letter: 'a', State: game.Correct},
+			{Letter: 'b', State: game.Absent},
+		}},
+	}
+	used := usedLetters(guesses)
+	for _, letter := range []byte{'a', 'b', 'c', 'd'} {
+		if !used[letter] {
+			t.Fatalf("accepted letter %c is not marked used", letter)
+		}
+	}
+	if used['z'] {
+		t.Fatal("unused letter is marked as used")
+	}
+}
+
+func TestKeyboardLayoutAndStyles(t *testing.T) {
+	model := setupModel(t)
+	compact := model.renderKeyboard()
+	if height := lipgloss.Height(compact); height != 6 {
+		t.Fatalf("compact keyboard height = %d, want 6", height)
+	}
+	if width := lipgloss.Width(compact); width != 33 {
+		t.Fatalf("compact keyboard width = %d, want 33", width)
+	}
+	plain := regexp.MustCompile(`\x1b\[[0-9:;]*m`).ReplaceAllString(compact, "")
+	lines := strings.Split(plain, "\n")
+	for row, want := range []string{"QWERT", "YUIOP", "ASDFG", "HJKLZ", "XCVBN", "M"} {
+		if got := strings.ReplaceAll(strings.TrimSpace(lines[row]), " ", ""); got != want {
+			t.Fatalf("keyboard row %d = %q, want %q", row, got, want)
+		}
+	}
+
+	model.width = 40
+	model.height = 48
+	large := model.renderKeyboard()
+	if height := lipgloss.Height(large); height != 18 {
+		t.Fatalf("large keyboard height = %d, want 18", height)
+	}
+	for _, letter := range "QWERTYUIOPASDFGHJKLZXCVBNM" {
+		if !strings.Contains(large, string(letter)) {
+			t.Fatalf("keyboard is missing %c", letter)
+		}
+	}
+
+	if style := keyboardKeyStyle(false, false); style.GetBold() || style.GetUnderline() || style.GetFaint() {
+		t.Fatal("unused key has feedback styling")
+	}
+	if style := keyboardKeyStyle(true, false); !style.GetFaint() || style.GetBold() || style.GetUnderline() {
+		t.Fatal("used key is not dim-only")
+	}
+}
+
+func TestPlayAreaResponsiveLayout(t *testing.T) {
+	model := setupModel(t)
+	model.width = 80
+	model.height = 40
+	compact := model.renderPlayArea()
+	if height := lipgloss.Height(compact); height != 13 {
+		t.Fatalf("compact play area height = %d, want 13", height)
+	}
+	if width := lipgloss.Width(compact); width != 33 {
+		t.Fatalf("compact play area width = %d, want 33", width)
+	}
+
+	model.height = 48
+	large := model.renderPlayArea()
+	if height := lipgloss.Height(large); height != 37 {
+		t.Fatalf("large play area height = %d, want 37", height)
+	}
+	if width := lipgloss.Width(large); width != 33 {
+		t.Fatalf("large play area width = %d, want 33", width)
+	}
+}
+
+func TestKeyboardRestoresAcceptedGuesses(t *testing.T) {
+	model := setupModel(t)
+	model.game.Guesses = []game.EvaluatedGuess{{Tiles: [game.WordLength]game.Tile{
+		{Letter: 'r', State: game.Correct},
+		{Letter: 'e', State: game.Present},
+		{Letter: 's', State: game.Absent},
+	}}}
+	used := usedLetters(NewModel(model.game).game.Guesses)
+	if !used['r'] || !used['e'] || !used['s'] {
+		t.Fatalf("restored keyboard letters = %v", used)
 	}
 }
 
@@ -93,7 +199,7 @@ func TestModelQuitControls(t *testing.T) {
 func TestModelLayoutIsLeftAlignedAndGrouped(t *testing.T) {
 	model := setupModel(t)
 	compact := model.View().Content
-	updated, _ := model.Update(tea.WindowSizeMsg{Width: 200, Height: 40})
+	updated, _ := model.Update(tea.WindowSizeMsg{Width: 200, Height: 48})
 	largeModel := updated.(Model)
 	large := largeModel.View().Content
 	if lipgloss.Height(largeModel.renderBoard()) != game.MaxAttempts*3 {
@@ -166,11 +272,18 @@ func TestStyledStatsAndCompletedLayout(t *testing.T) {
 	if !strings.Contains(model.renderStatus(), "\n\n") {
 		t.Fatal("completed result has no separator before statistics")
 	}
-	if height := lipgloss.Height(model.View().Content); height > 24 {
-		t.Fatalf("completed layout height = %d, want at most 24", height)
+	if !strings.Contains(model.View().Content, "Q") {
+		t.Fatal("completed layout is missing the keyboard")
+	}
+	if height := lipgloss.Height(model.View().Content); height > 33 {
+		t.Fatalf("completed layout height = %d, want at most 33", height)
 	}
 	updated, _ := model.Update(tea.WindowSizeMsg{Width: 80, Height: 40})
 	if height := lipgloss.Height(updated.(Model).View().Content); height > 40 {
 		t.Fatalf("large completed layout height = %d, want at most 40", height)
+	}
+	updated, _ = model.Update(tea.WindowSizeMsg{Width: 80, Height: 58})
+	if height := lipgloss.Height(updated.(Model).View().Content); height > 58 {
+		t.Fatalf("large-grid completed layout height = %d, want at most 58", height)
 	}
 }
