@@ -121,10 +121,8 @@ func startGameForDate(date string) (*Game, error) {
 	for _, guess := range savedGuesses {
 		game.Guesses = append(game.Guesses, evaluateGuess(puzzle.Word, guess.Word))
 	}
-	if game.Done {
-		if err := game.loadStats(); err != nil {
-			return nil, err
-		}
+	if err := game.loadStats(); err != nil {
+		return nil, err
 	}
 	return game, nil
 }
@@ -233,8 +231,15 @@ func calculateStats(results []db.Result, today string) Stats {
 	if stats.Played > 0 {
 		stats.WinPercentage = stats.Wins * 100 / stats.Played
 	}
-	if len(results) > 0 && results[len(results)-1].Won && results[len(results)-1].PuzzleDate == today {
-		stats.CurrentStreak = streak
+	if len(results) > 0 && results[len(results)-1].Won {
+		todayDate, todayErr := time.Parse("2006-01-02", today)
+		lastDate, lastErr := time.Parse("2006-01-02", results[len(results)-1].PuzzleDate)
+		if todayErr == nil && lastErr == nil {
+			difference := todayDate.Sub(lastDate)
+			if difference == 0 || difference == 24*time.Hour {
+				stats.CurrentStreak = streak
+			}
+		}
 	}
 	return stats
 }

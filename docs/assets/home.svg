@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="440" viewBox="0 0 760 440" role="img" aria-labelledby="title description">
+  <title id="title">Wordly home screen</title>
+  <desc id="description">The centered Wordly menu with Play Daily, Statistics, and Quit options.</desc>
+  <style>
+    text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #f3f4f6 }
+    .green { fill: #5bcb76 }
+    .muted { fill: #94a3b8 }
+  </style>
+  <rect width="760" height="440" rx="12" fill="#0b1118"/>
+  <circle cx="22" cy="20" r="6" fill="#ef4444"/>
+  <circle cx="42" cy="20" r="6" fill="#eab308"/>
+  <circle cx="62" cy="20" r="6" fill="#22c55e"/>
+
+  <text class="green" x="380" y="120" font-size="28" font-weight="700" text-anchor="middle" letter-spacing="8">WORDLY</text>
+  <text class="muted" x="380" y="151" font-size="15" text-anchor="middle">A minimal word game for your terminal</text>
+
+  <g font-size="17">
+    <text class="green" x="292" y="215" font-weight="700">› Play Daily</text>
+    <text x="310" y="252">Statistics</text>
+    <text x="310" y="289">Quit</text>
+  </g>
+
+  <text class="muted" x="380" y="354" font-size="13" text-anchor="middle">↑/↓ or j/k navigate  •  enter select  •  q quit</text>
+</svg>

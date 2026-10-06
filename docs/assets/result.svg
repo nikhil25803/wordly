@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="720" viewBox="0 0 760 720" role="img" aria-labelledby="title description">
+  <title id="title">Completed Wordly result</title>
+  <desc id="description">A solved Wordly board in five guesses with Share Result selected.</desc>
+  <style>
+    text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #f3f4f6 }
+    .green-text { fill: #5bcb76 }
+    .muted { fill: #94a3b8 }
+    .empty { fill: #202833 }
+    .correct { fill: #5bcb76 }
+    .present { fill: #d7b93e }
+    .absent { fill: #4b5563 }
+    .letter { font-size: 18px; font-weight: 700; text-anchor: middle; dominant-baseline: middle }
+  </style>
+  <rect width="760" height="720" rx="12" fill="#0b1118"/>
+  <circle cx="22" cy="20" r="6" fill="#ef4444"/>
+  <circle cx="42" cy="20" r="6" fill="#eab308"/>
+  <circle cx="62" cy="20" r="6" fill="#22c55e"/>
+
+  <text class="green-text" x="380" y="73" font-size="24" font-weight="700" text-anchor="middle" letter-spacing="7">WORDLY</text>
+  <text x="380" y="112" font-size="17" text-anchor="middle">You got it!</text>
+
+  <g transform="translate(225 140)">
+    <g>
+      <rect class="absent" width="54" height="40" rx="3"/><text class="letter" x="27" y="21">H</text>
+      <rect class="correct" x="64" width="54" height="40" rx="3"/><text class="letter" x="91" y="21">E</text>
+      <rect class="absent" x="128" width="54" height="40" rx="3"/><text class="letter" x="155" y="21">L</text>
+      <rect class="absent" x="192" width="54" height="40" rx="3"/><text class="letter" x="219" y="21">L</text>
+      <rect class="absent" x="256" width="54" height="40" rx="3"/><text class="letter" x="283" y="21">O</text>
+    </g>
+    <g transform="translate(0 48)">
+      <rect class="absent" width="54" height="40" rx="3"/><text class="letter" x="27" y="21">F</text>
+      <rect class="present" x="64" width="54" height="40" rx="3"/><text class="letter" x="91" y="21">E</text>
+      <rect class="present" x="128" width="54" height="40" rx="3"/><text class="letter" x="155" y="21">I</text>
+      <rect class="absent" x="192" width="54" height="40" rx="3"/><text class="letter" x="219" y="21">G</text>
+      <rect class="absent" x="256" width="54" height="40" rx="3"/><text class="letter" x="283" y="21">N</text>
+    </g>
+    <g transform="translate(0 96)">
+      <rect class="absent" width="54" height="40" rx="3"/><text class="letter" x="27" y="21">C</text>
+      <rect class="absent" x="64" width="54" height="40" rx="3"/><text class="letter" x="91" y="21">L</text>
+      <rect class="absent" x="128" width="54" height="40" rx="3"/><text class="letter" x="155" y="21">O</text>
+      <rect class="absent" x="192" width="54" height="40" rx="3"/><text class="letter" x="219" y="21">U</text>
+      <rect class="absent" x="256" width="54" height="40" rx="3"/><text class="letter" x="283" y="21">D</text>
+    </g>
+    <g transform="translate(0 144)">
+      <rect class="correct" width="54" height="40" rx="3"/><text class="letter" x="27" y="21">R</text>
+      <rect class="correct" x="64" width="54" height="40" rx="3"/><text class="letter" x="91" y="21">I</text>
+      <rect class="absent" x="128" width="54" height="40" rx="3"/><text class="letter" x="155" y="21">D</text>
+      <rect class="correct" x="192" width="54" height="40" rx="3"/><text class="letter" x="219" y="21">E</text>
+      <rect class="correct" x="256" width="54" height="40" rx="3"/><text class="letter" x="283" y="21">R</text>
+    </g>
+    <g transform="translate(0 192)">
+      <rect class="correct" width="54" height="40" rx="3"/><text class="letter" x="27" y="21">R</text>
+      <rect class="correct" x="64" width="54" height="40" rx="3"/><text class="letter" x="91" y="21">I</text>
+      <rect class="correct" x="128" width="54" height="40" rx="3"/><text class="letter" x="155" y="21">V</text>
+      <rect class="correct" x="192" width="54" height="40" rx="3"/><text class="letter" x="219" y="21">E</text>
+      <rect class="correct" x="256" width="54" height="40" rx="3"/><text class="letter" x="283" y="21">R</text>
+    </g>
+    <g transform="translate(0 240)">
+      <rect class="empty" width="54" height="40" rx="3"/><text class="letter muted" x="27" y="21">·</text>
+      <rect class="empty" x="64" width="54" height="40" rx="3"/><text class="letter muted" x="91" y="21">·</text>
+      <rect class="empty" x="128" width="54" height="40" rx="3"/><text class="letter muted" x="155" y="21">·</text>
+      <rect class="empty" x="192" width="54" height="40" rx="3"/><text class="letter muted" x="219" y="21">·</text>
+      <rect class="empty" x="256" width="54" height="40" rx="3"/><text class="letter muted" x="283" y="21">·</text>
+    </g>
+  </g>
+
+  <text x="380" y="452" font-size="15" text-anchor="middle">Answer RIVER<tspan class="muted">  │  5/6</tspan></text>
+  <g font-size="16">
+    <text class="green-text" x="298" y="507" font-weight="700">› Share Result</text>
+    <text x="316" y="542">View Stats</text>
+    <text x="316" y="577">Back to Menu</text>
+    <text x="316" y="612">Quit</text>
+  </g>
+  <text class="muted" x="380" y="667" font-size="13" text-anchor="middle">↑/↓ or j/k navigate  •  s share  •  esc menu</text>
+</svg>

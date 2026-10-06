@@ -1,13 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="660" height="275" viewBox="0 0 660 275" role="img" aria-labelledby="title">
+<svg xmlns="http://www.w3.org/2000/svg" width="660" height="275" viewBox="0 0 660 275" role="img" aria-labelledby="title description">
   <title id="title">wordly help output</title>
-  <rect width="660" height="275" rx="10" fill="#111827"/>
+  <desc id="description">Terminal output listing Wordly usage and command-line flags.</desc>
+  <rect width="660" height="275" rx="10" fill="#0b1118"/>
   <circle cx="20" cy="18" r="5" fill="#ef4444"/><circle cx="38" cy="18" r="5" fill="#eab308"/><circle cx="56" cy="18" r="5" fill="#22c55e"/>
-  <text x="24" y="53" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#e5e7eb">
+  <text x="24" y="53" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#f3f4f6">
     <tspan x="24" dy="0">Wordly is a local, terminal-based Wordle game with one shared</tspan>
     <tspan x="24" dy="20">puzzle each UTC day.</tspan>
-    <tspan x="24" dy="30" fill="#6aaa64">Usage:</tspan>
+    <tspan x="24" dy="30" fill="#5bcb76">Usage:</tspan>
     <tspan x="24" dy="20">  wordly [flags]</tspan>
-    <tspan x="24" dy="30" fill="#6aaa64">Flags:</tspan>
+    <tspan x="24" dy="30" fill="#5bcb76">Flags:</tspan>
     <tspan x="24" dy="20">  -h, --help    help for wordly</tspan>
     <tspan x="24" dy="20">      --reset   Reset the current user's game statistics</tspan>
     <tspan x="24" dy="20">      --stats   Show the current user's game statistics</tspan>

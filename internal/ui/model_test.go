@@ -3,7 +3,6 @@ package ui
 import (
 	"fmt"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -13,18 +12,23 @@ import (
 	"github.com/nikhil25803/wordly/internal/game"
 )
 
-func setupModel(t *testing.T) Model {
+func setupTestModel(t *testing.T) Model {
 	t.Helper()
 	t.Setenv("WORDLY_DB", filepath.Join(t.TempDir(), "wordly.db"))
 	if err := db.ConnectDatabase(); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { db.DB.Close() })
-	currentGame, err := game.StartGame()
+	t.Cleanup(func() { _ = db.DB.Close() })
+	return NewModel()
+}
+
+func startTestGame(t *testing.T) *game.Game {
+	t.Helper()
+	current, err := game.StartGame()
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewModel(currentGame)
+	return current
 }
 
 func pressText(t *testing.T, model Model, text string) Model {
@@ -42,52 +46,88 @@ func pressKey(t *testing.T, model Model, code rune) (Model, tea.Cmd) {
 	return updated.(Model), cmd
 }
 
-func TestModelInputAndValidation(t *testing.T) {
-	model := setupModel(t)
+func TestHomeNavigationAndAsyncLoading(t *testing.T) {
+	model := setupTestModel(t)
+	if model.screen != screenHome {
+		t.Fatalf("initial screen = %v, want home", model.screen)
+	}
+
+	model, _ = pressKey(t, model, 'j')
+	if model.menuIndex != 1 {
+		t.Fatalf("j selected item %d, want 1", model.menuIndex)
+	}
+	model, _ = pressKey(t, model, 'k')
+	if model.menuIndex != 0 {
+		t.Fatalf("k selected item %d, want 0", model.menuIndex)
+	}
+
+	var cmd tea.Cmd
+	model, cmd = pressKey(t, model, tea.KeyEnter)
+	if cmd == nil || !model.loading {
+		t.Fatal("Play Daily did not start asynchronous loading")
+	}
+	updated, _ := model.Update(cmd())
+	model = updated.(Model)
+	if model.screen != screenGame || model.game == nil || model.loading {
+		t.Fatalf("loaded daily game = screen:%v game:%v loading:%v", model.screen, model.game != nil, model.loading)
+	}
+
+	model.screen = screenHome
+	model.menuIndex = 1
+	model, cmd = pressKey(t, model, tea.KeyEnter)
+	if cmd == nil {
+		t.Fatal("Statistics did not start asynchronous loading")
+	}
+	updated, _ = model.Update(cmd())
+	model = updated.(Model)
+	if model.screen != screenStats || model.previousScreen != screenHome {
+		t.Fatalf("stats loaded into screen %v from %v", model.screen, model.previousScreen)
+	}
+}
+
+func TestGameInputValidationAndEscape(t *testing.T) {
+	model := setupTestModel(t)
+	model.screen = screenGame
+	model.game = startTestGame(t)
+
+	model = pressText(t, model, "s")
+	if model.input != "s" {
+		t.Fatal("s did not remain a playable letter")
+	}
+	model, _ = pressKey(t, model, tea.KeyBackspace)
 	model = pressText(t, model, "qwerty")
 	if model.input != "qwert" {
 		t.Fatalf("input = %q, want qwert", model.input)
 	}
-	if len(usedLetters(model.game.Guesses)) != 0 {
-		t.Fatal("unsubmitted input changed keyboard state")
+	if len(model.game.Guesses) != 0 {
+		t.Fatal("unsubmitted input changed accepted guesses")
 	}
 
-	model, _ = pressKey(t, model, tea.KeyBackspace)
-	if model.input != "qwer" {
-		t.Fatalf("input after backspace = %q", model.input)
+	for range game.WordLength {
+		model, _ = pressKey(t, model, tea.KeyBackspace)
 	}
-	model, _ = pressKey(t, model, tea.KeyEnter)
-	if model.message != game.ErrGuessLength.Error() {
-		t.Fatalf("short guess message = %q", model.message)
-	}
-
-	model, _ = pressKey(t, model, tea.KeyBackspace)
-	model, _ = pressKey(t, model, tea.KeyBackspace)
-	model, _ = pressKey(t, model, tea.KeyBackspace)
-	model, _ = pressKey(t, model, tea.KeyBackspace)
 	model = pressText(t, model, "zzzzz")
 	model, _ = pressKey(t, model, tea.KeyEnter)
 	if model.message != game.ErrWordNotFound.Error() || len(model.game.Guesses) != 0 {
 		t.Fatalf("unknown guess = message:%q attempts:%d", model.message, len(model.game.Guesses))
 	}
-	if len(usedLetters(model.game.Guesses)) != 0 {
-		t.Fatal("invalid guess changed keyboard state")
+
+	model, _ = pressKey(t, model, tea.KeyEscape)
+	if model.screen != screenHome || model.input != "" || model.message != "" {
+		t.Fatalf("escape = screen:%v input:%q message:%q", model.screen, model.input, model.message)
 	}
-	if !strings.Contains(model.View().Content, "bold=correct") {
-		t.Fatal("view is missing the non-color tile legend")
-	}
-	if !strings.Contains(model.View().Content, "keyboard: dim=used") {
-		t.Fatal("view is missing the non-color keyboard legend")
+	_, cmd := model.Update(tea.KeyPressMsg(tea.Key{Code: 'c', Mod: tea.ModCtrl}))
+	if cmd == nil {
+		t.Fatal("ctrl+c did not quit")
 	}
 }
 
-func TestKeyboardMarksAcceptedLettersUsed(t *testing.T) {
+func TestKeyboardUsesStrongestFeedback(t *testing.T) {
 	guesses := []game.EvaluatedGuess{
 		{Tiles: [game.WordLength]game.Tile{
 			{Letter: 'a', State: game.Absent},
 			{Letter: 'b', State: game.Correct},
 			{Letter: 'c', State: game.Present},
-			{Letter: 'd', State: game.Absent},
 			{Letter: 'a', State: game.Present},
 		}},
 		{Tiles: [game.WordLength]game.Tile{
@@ -95,137 +135,227 @@ func TestKeyboardMarksAcceptedLettersUsed(t *testing.T) {
 			{Letter: 'b', State: game.Absent},
 		}},
 	}
-	used := usedLetters(guesses)
-	for _, letter := range []byte{'a', 'b', 'c', 'd'} {
-		if !used[letter] {
-			t.Fatalf("accepted letter %c is not marked used", letter)
-		}
+	states := keyboardStates(guesses)
+	if states['a'] != game.Correct || states['b'] != game.Correct || states['c'] != game.Present {
+		t.Fatalf("strongest keyboard states = %v", states)
 	}
-	if used['z'] {
-		t.Fatal("unused letter is marked as used")
+	if _, used := states['z']; used {
+		t.Fatal("unused letter was marked used")
+	}
+
+	model := Model{game: &game.Game{Guesses: guesses}}
+	for _, width := range []int{58, 100} {
+		keyboard := model.renderKeyboard(width, width >= 78)
+		for _, letter := range "QWERTYUIOPASDFGHJKLZXCVBNM" {
+			if !strings.Contains(keyboard, string(letter)) {
+				t.Fatalf("keyboard width %d is missing %c", width, letter)
+			}
+		}
+		if lipgloss.Width(keyboard) > width {
+			t.Fatalf("keyboard width %d overflows to %d", width, lipgloss.Width(keyboard))
+		}
 	}
 }
 
-func TestKeyboardLayoutAndStyles(t *testing.T) {
-	model := setupModel(t)
-	compact := model.renderKeyboard()
-	if height := lipgloss.Height(compact); height != 6 {
-		t.Fatalf("compact keyboard height = %d, want 6", height)
-	}
-	if width := lipgloss.Width(compact); width != 33 {
-		t.Fatalf("compact keyboard width = %d, want 33", width)
-	}
-	plain := regexp.MustCompile(`\x1b\[[0-9:;]*m`).ReplaceAllString(compact, "")
-	lines := strings.Split(plain, "\n")
-	for row, want := range []string{"QWERT", "YUIOP", "ASDFG", "HJKLZ", "XCVBN", "M"} {
-		if got := strings.ReplaceAll(strings.TrimSpace(lines[row]), " ", ""); got != want {
-			t.Fatalf("keyboard row %d = %q, want %q", row, got, want)
-		}
-	}
+func TestResponsiveGameLayouts(t *testing.T) {
+	model := setupTestModel(t)
+	model.screen = screenGame
+	model.game = startTestGame(t)
+	model.stats = game.Stats{Played: 12, Wins: 11, WinPercentage: 91, CurrentStreak: 3}
 
-	model.width = 40
-	model.height = 48
-	large := model.renderKeyboard()
-	if height := lipgloss.Height(large); height != 18 {
-		t.Fatalf("large keyboard height = %d, want 18", height)
-	}
-	for _, letter := range "QWERTYUIOPASDFGHJKLZXCVBNM" {
-		if !strings.Contains(large, string(letter)) {
-			t.Fatalf("keyboard is missing %c", letter)
-		}
-	}
+	for _, width := range []int{60, 79, 80, 119, 120, 160} {
+		t.Run(fmt.Sprintf("width_%d", width), func(t *testing.T) {
+			candidate := model
+			candidate.width = width
+			candidate.height = 30
+			content := candidate.View().Content
+			if got := lipgloss.Width(content); got > width {
+				t.Fatalf("content width = %d, terminal width = %d", got, width)
+			}
+			if got := lipgloss.Height(content); got > candidate.height {
+				t.Fatalf("content height = %d, terminal height = %d", got, candidate.height)
+			}
+			if strings.Count(content, "·") != game.WordLength*game.MaxAttempts {
+				t.Fatal("responsive layout does not contain the complete board")
+			}
+			if !strings.Contains(content, "Enter your guess") {
+				t.Fatal("responsive layout is missing the input prompt")
+			}
 
-	if style := keyboardKeyStyle(false, false); style.GetBold() || style.GetUnderline() || style.GetFaint() {
-		t.Fatal("unused key has feedback styling")
-	}
-	if style := keyboardKeyStyle(true, false); !style.GetFaint() || style.GetBold() || style.GetUnderline() {
-		t.Fatal("used key is not dim-only")
+			switch {
+			case width < 80:
+				if strings.Contains(content, model.game.PuzzleDate) || strings.Contains(content, "Win 91%") {
+					t.Fatal("small layout contains hidden metadata")
+				}
+			case width < 120:
+				if !strings.Contains(content, model.game.PuzzleDate) || !strings.Contains(content, "Win 91%") {
+					t.Fatal("medium layout is missing date or win rate")
+				}
+				if strings.Contains(content, "Guess distribution") {
+					t.Fatal("medium layout contains guess distribution")
+				}
+			default:
+				if !strings.Contains(content, model.game.PuzzleDate) || !strings.Contains(content, "Guess distribution") {
+					t.Fatal("large layout is missing date or distribution")
+				}
+				if strings.Contains(content, strings.Repeat("─", 111)) {
+					t.Fatal("large layout contains a divider wider than the bounded canvas")
+				}
+				if !strings.Contains(content, strings.Repeat("─", 110)) {
+					t.Fatal("large layout is missing the 110-column canvas divider")
+				}
+				if got := lipgloss.Width(candidate.renderGameBody(110, 28, width)); got > 110 {
+					t.Fatalf("large play area width = %d, canvas width = 110", got)
+				}
+			}
+		})
 	}
 }
 
-func TestPlayAreaResponsiveLayout(t *testing.T) {
-	model := setupModel(t)
+func TestShortGameKeepsBoardAndPrompt(t *testing.T) {
+	model := setupTestModel(t)
+	model.screen = screenGame
+	model.game = startTestGame(t)
+	model.width = 60
+	model.height = 14
+	content := model.View().Content
+	if strings.Count(content, "·") != game.WordLength*game.MaxAttempts || !strings.Contains(content, "Enter your guess") {
+		t.Fatal("short layout dropped the board or prompt")
+	}
+	if strings.Contains(content, "Q W E R T Y") {
+		t.Fatal("short layout did not prune the keyboard")
+	}
+	if got := lipgloss.Height(content); got > model.height {
+		t.Fatalf("short layout height = %d, terminal height = %d", got, model.height)
+	}
+}
+
+func TestResultAndStatsNavigation(t *testing.T) {
+	model := setupTestModel(t)
+	current := startTestGame(t)
+	puzzle, err := db.GetPuzzleByDate(current.PuzzleDate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := current.SubmitGuess(puzzle.Word); err != nil {
+		t.Fatal(err)
+	}
+	updated, _ := model.Update(gameStartedMsg{game: current})
+	model = updated.(Model)
 	model.width = 80
-	model.height = 40
-	compact := model.renderPlayArea()
-	if height := lipgloss.Height(compact); height != 13 {
-		t.Fatalf("compact play area height = %d, want 13", height)
+	model.height = 30
+	content := model.View().Content
+	if !strings.Contains(content, "You got it!") {
+		t.Fatal("result screen is missing the outcome")
 	}
-	if width := lipgloss.Width(compact); width != 33 {
-		t.Fatalf("compact play area width = %d, want 33", width)
+	for _, letter := range strings.ToUpper(puzzle.Word) {
+		if !strings.Contains(content, string(letter)) {
+			t.Fatalf("result screen is missing answer letter %c", letter)
+		}
+	}
+	if strings.Count(content, "·") != (game.MaxAttempts-len(current.Guesses))*game.WordLength {
+		t.Fatal("result screen is missing the restored six-row board")
 	}
 
-	model.height = 48
-	large := model.renderPlayArea()
-	if height := lipgloss.Height(large); height != 37 {
-		t.Fatalf("large play area height = %d, want 37", height)
+	model, cmd := pressKey(t, model, 's')
+	if cmd == nil || model.message != "Copied result to clipboard" {
+		t.Fatal("s did not copy the completed result")
 	}
-	if width := lipgloss.Width(large); width != 33 {
-		t.Fatalf("large play area width = %d, want 33", width)
+	if got, want := fmt.Sprint(cmd()), formatShareResult(current); got != want {
+		t.Fatalf("clipboard content = %q, want %q", got, want)
+	}
+
+	model.resultIndex = 1
+	model, _ = pressKey(t, model, tea.KeyEnter)
+	if model.screen != screenStats || model.previousScreen != screenResult {
+		t.Fatalf("View Stats opened screen %v from %v", model.screen, model.previousScreen)
+	}
+	if content := model.View().Content; !strings.Contains(content, "Win Rate") || !strings.Contains(content, "Guess Distribution") {
+		t.Fatal("stats screen is missing full statistics")
+	}
+	model, _ = pressKey(t, model, tea.KeyEscape)
+	if model.screen != screenResult {
+		t.Fatalf("stats escape returned to %v, want result", model.screen)
+	}
+	model.resultIndex = 2
+	model, _ = pressKey(t, model, tea.KeyEnter)
+	if model.screen != screenHome {
+		t.Fatalf("Back to Menu returned to %v", model.screen)
 	}
 }
 
-func TestKeyboardRestoresAcceptedGuesses(t *testing.T) {
-	model := setupModel(t)
-	model.game.Guesses = []game.EvaluatedGuess{{Tiles: [game.WordLength]game.Tile{
-		{Letter: 'r', State: game.Correct},
-		{Letter: 'e', State: game.Present},
-		{Letter: 's', State: game.Absent},
-	}}}
-	used := usedLetters(NewModel(model.game).game.Guesses)
-	if !used['r'] || !used['e'] || !used['s'] {
-		t.Fatalf("restored keyboard letters = %v", used)
+func TestCompletedLossResultRestoresBoard(t *testing.T) {
+	model := setupTestModel(t)
+	current := startTestGame(t)
+	puzzle, err := db.GetPuzzleByDate(current.PuzzleDate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wordCount, err := db.GetWordCount()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for index := 0; index < wordCount && !current.Done; index++ {
+		word, getErr := db.GetWordByIndex(index)
+		if getErr != nil {
+			t.Fatal(getErr)
+		}
+		if word == puzzle.Word {
+			continue
+		}
+		if submitErr := current.SubmitGuess(word); submitErr != nil {
+			t.Fatal(submitErr)
+		}
+	}
+	if !current.Done || current.Won || len(current.Guesses) != game.MaxAttempts {
+		t.Fatalf("loss = done:%v won:%v guesses:%d", current.Done, current.Won, len(current.Guesses))
+	}
+
+	updated, _ := model.Update(gameStartedMsg{game: current})
+	model = updated.(Model)
+	model.width = 80
+	model.height = 30
+	content := model.View().Content
+	if model.screen != screenResult || !strings.Contains(content, "Not quite") ||
+		!strings.Contains(content, "Answer "+strings.ToUpper(puzzle.Word)) || !strings.Contains(content, "X/6") {
+		t.Fatal("completed loss result is missing its restored outcome")
+	}
+	if strings.Contains(content, "·") {
+		t.Fatal("six-attempt loss rendered empty board tiles")
 	}
 }
 
-func TestModelQuitControls(t *testing.T) {
-	model := setupModel(t)
-	model = pressText(t, model, "q")
-	if model.input != "q" {
-		t.Fatal("q did not remain a playable letter")
+func TestShareResultFormatting(t *testing.T) {
+	win := &game.Game{
+		PuzzleDate: "2026-10-06",
+		Done:       true,
+		Won:        true,
+		Guesses: []game.EvaluatedGuess{
+			{Word: "stare", Tiles: [game.WordLength]game.Tile{
+				{State: game.Absent}, {State: game.Present}, {State: game.Absent}, {State: game.Absent}, {State: game.Correct},
+			}},
+			{Word: "river", Tiles: [game.WordLength]game.Tile{
+				{State: game.Correct}, {State: game.Correct}, {State: game.Correct}, {State: game.Correct}, {State: game.Correct},
+			}},
+		},
+	}
+	want := "WORDLY 2026-10-06 2/6\n\n⬛🟨⬛⬛🟩\n🟩🟩🟩🟩🟩\n\n" +
+		"I played today's Wordly — can you solve it too?\nhttps://github.com/nikhil25803/wordly"
+	if got := formatShareResult(win); got != want {
+		t.Fatalf("win share = %q, want %q", got, want)
+	}
+	if strings.Contains(strings.ToLower(formatShareResult(win)), "river") {
+		t.Fatal("share text revealed the answer")
 	}
 
-	model.game.Done = true
-	_, cmd := pressKey(t, model, 'q')
-	if cmd == nil {
-		t.Fatal("q did not quit a completed game")
+	loss := *win
+	loss.Won = false
+	loss.Guesses = make([]game.EvaluatedGuess, game.MaxAttempts)
+	if got := formatShareResult(&loss); !strings.HasPrefix(got, "WORDLY 2026-10-06 X/6\n") {
+		t.Fatalf("loss share score = %q", got)
 	}
-	_, cmd = pressKey(t, model, tea.KeyEscape)
-	if cmd == nil {
-		t.Fatal("escape did not quit")
-	}
-}
-
-func TestModelLayoutIsLeftAlignedAndGrouped(t *testing.T) {
-	model := setupModel(t)
-	compact := model.View().Content
-	updated, _ := model.Update(tea.WindowSizeMsg{Width: 200, Height: 48})
-	largeModel := updated.(Model)
-	large := largeModel.View().Content
-	if lipgloss.Height(largeModel.renderBoard()) != game.MaxAttempts*3 {
-		t.Fatal("large terminal did not render three-line tiles")
-	}
-	if width := lipgloss.Width(largeModel.renderBoard()); width != game.WordLength*5+(game.WordLength-1)*2 {
-		t.Fatalf("large board width = %d, want five-column tiles with two-column gaps", width)
-	}
-	if lipgloss.Height(model.renderBoard()) != game.MaxAttempts {
-		t.Fatal("unknown terminal size did not use compact tiles")
-	}
-	updated, _ = model.Update(tea.WindowSizeMsg{Width: 39, Height: 40})
-	if lipgloss.Height(updated.(Model).renderBoard()) != game.MaxAttempts {
-		t.Fatal("narrow terminal did not use compact tiles")
-	}
-	if strings.Count(large, "·") != game.WordLength*game.MaxAttempts {
-		t.Fatal("layout does not contain the complete six-row board")
-	}
-	if !strings.HasPrefix(compact, " ") || !strings.HasPrefix(large, " ") {
-		t.Fatal("layout is not left aligned with its one-column margin")
-	}
-	if len(regexp.MustCompile(`\n +\n`).FindAllString(large, -1)) < 2 {
-		t.Fatal("layout is missing blank lines between content groups")
-	}
-	if !strings.Contains(large, "W O R D L Y") {
-		t.Fatal("layout is missing the spaced title")
+	if got := formatShareResult(&game.Game{}); got != "" {
+		t.Fatalf("unfinished share = %q, want empty", got)
 	}
 }
 
@@ -243,47 +373,5 @@ func TestRenderStatsIsPlainAndComplete(t *testing.T) {
 		if !strings.Contains(output, fmt.Sprintf("%d  ", attempt)) {
 			t.Fatalf("stats output is missing attempt %d", attempt)
 		}
-	}
-}
-
-func TestStyledStatsAndCompletedLayout(t *testing.T) {
-	stats := game.Stats{Played: 3, Wins: 2, WinPercentage: 66, CurrentStreak: 1, MaxStreak: 2}
-	stats.Distribution = [game.MaxAttempts]int{1, 0, 1, 0, 0, 0}
-	styled := renderStyledStats(stats)
-	if !strings.Contains(styled, "\x1b[") {
-		t.Fatal("styled stats contain no terminal styling")
-	}
-	for _, label := range []string{"Played 3", "Wins 2", "Win 66%", "Streak 1", "Max 2"} {
-		if !strings.Contains(styled, label) {
-			t.Fatalf("styled stats are missing card %q", label)
-		}
-	}
-	for attempt := 1; attempt <= game.MaxAttempts; attempt++ {
-		if !strings.Contains(styled, fmt.Sprintf("%d  ", attempt)) {
-			t.Fatalf("styled stats are missing attempt %d", attempt)
-		}
-	}
-
-	model := setupModel(t)
-	model.game.Done = true
-	model.game.Won = true
-	model.game.Guesses = make([]game.EvaluatedGuess, 5)
-	model.game.Stats = stats
-	if !strings.Contains(model.renderStatus(), "\n\n") {
-		t.Fatal("completed result has no separator before statistics")
-	}
-	if !strings.Contains(model.View().Content, "Q") {
-		t.Fatal("completed layout is missing the keyboard")
-	}
-	if height := lipgloss.Height(model.View().Content); height > 33 {
-		t.Fatalf("completed layout height = %d, want at most 33", height)
-	}
-	updated, _ := model.Update(tea.WindowSizeMsg{Width: 80, Height: 40})
-	if height := lipgloss.Height(updated.(Model).View().Content); height > 40 {
-		t.Fatalf("large completed layout height = %d, want at most 40", height)
-	}
-	updated, _ = model.Update(tea.WindowSizeMsg{Width: 80, Height: 58})
-	if height := lipgloss.Height(updated.(Model).View().Content); height > 58 {
-		t.Fatalf("large-grid completed layout height = %d, want at most 58", height)
 	}
 }
