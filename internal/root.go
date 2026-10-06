@@ -56,11 +56,7 @@ var rootCmd = &cobra.Command{
 			return nil
 		}
 
-		currentGame, err := game.StartGame()
-		if err != nil {
-			return err
-		}
-		return ui.Run(currentGame, cmd.OutOrStdout())
+		return ui.Run(cmd.OutOrStdout())
 	},
 }
 

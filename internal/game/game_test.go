@@ -173,8 +173,39 @@ func TestCalculateStats(t *testing.T) {
 	if stats.Distribution != [MaxAttempts]int{1, 1, 1, 1, 0, 0} {
 		t.Fatalf("unexpected distribution: %v", stats.Distribution)
 	}
-	if stale := calculateStats(results, "2099-04-07"); stale.CurrentStreak != 0 {
-		t.Fatalf("missed day retained current streak: %+v", stale)
+	if nextDay := calculateStats(results, "2099-04-07"); nextDay.CurrentStreak != 1 {
+		t.Fatalf("unfinished next day lost the live streak: %+v", nextDay)
+	}
+	if stale := calculateStats(results, "2099-04-08"); stale.CurrentStreak != 0 {
+		t.Fatalf("genuinely missed day retained current streak: %+v", stale)
+	}
+}
+
+func TestUnfinishedGameLoadsLiveStats(t *testing.T) {
+	setupTestDatabase(t)
+	if _, err := db.GetOrCreatePuzzle("2099-05-01", "which"); err != nil {
+		t.Fatal(err)
+	}
+	first, err := startGameForDate("2099-05-01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := first.SubmitGuess("which"); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := db.GetOrCreatePuzzle("2099-05-02", "there"); err != nil {
+		t.Fatal(err)
+	}
+	active, err := startGameForDate("2099-05-02")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if active.Done {
+		t.Fatal("new daily game is already complete")
+	}
+	if active.Stats.Played != 1 || active.Stats.Wins != 1 || active.Stats.CurrentStreak != 1 {
+		t.Fatalf("active game stats = %+v", active.Stats)
 	}
 }
 

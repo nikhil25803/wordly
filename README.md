@@ -84,13 +84,15 @@ Ensure the selected directory is on your `PATH`, then launch the game with `word
 
 ## Controls
 
-| Key           | Action                                  |
-| ------------- | --------------------------------------- |
-| Letters       | Fill the current five-letter guess      |
-| Backspace     | Remove the last letter                  |
-| Enter         | Submit a complete guess                 |
-| Esc or Ctrl+C | Quit while preserving submitted guesses |
-| Enter or q    | Exit after a completed game             |
+| Key             | Action                                           |
+| --------------- | ------------------------------------------------ |
+| Letters         | Fill the current five-letter guess               |
+| Backspace       | Remove the last letter                            |
+| Arrow keys, j/k | Navigate menus                                   |
+| Enter           | Submit a guess or select a menu item              |
+| S               | Copy a completed result from the Result screen    |
+| Esc             | Return to the previous screen                     |
+| Ctrl+C          | Quit while preserving submitted guesses          |
 
 Correct letters are **bold and green**, present letters are <u>underlined and yellow</u>, and absent letters are dim and gray. The legend remains visible so meaning is not conveyed by color alone.
 
