@@ -18,27 +18,49 @@
 ## Contents
 
 - [Overview](#overview)
+- [Demo](#demo)
 - [Features](#features)
 - [Install](#install)
 - [Commands](#commands)
 - [Controls](#controls)
+- [Sharing](#sharing)
 - [Supported platforms](#supported-platforms)
 - [Local data](#local-data)
 - [Development](#development)
-- [Releases](#releases)
-- [Contributing](#contributing)
 - [License](#license)
 
 ## Overview
 
 Wordly is a daily, six-attempt word game for the command line. Everyone receives the same puzzle for the UTC calendar day. Accepted guesses, unfinished progress, and statistics are saved locally for the current operating-system user—there is no account, network service, or telemetry.
 
+## Demo
+
+<p align="center">
+  <strong>Home</strong><br>
+  <img src="docs/assets/home.svg" alt="Wordly home menu" width="620">
+</p>
+
+<p align="center">
+  <strong>Daily game</strong><br>
+  <img src="docs/assets/gameplay.svg" alt="Responsive Wordly daily game" width="900">
+</p>
+
+<p align="center">
+  <strong>Completed result</strong><br>
+  <img src="docs/assets/result.svg" alt="Completed Wordly result with sharing option" width="620">
+</p>
+
+The interface adapts its board, keyboard, and statistics to the terminal width. Submitted guesses resume automatically, and reopening a finished daily game restores its complete Result screen.
+
 ## Features
 
-- Responsive Bubble Tea interface with accessible color and text styling
+- Responsive Home, Game, Result, and Statistics screens built with Bubble Tea and Lip Gloss
+- Bounded large-screen layout with compact medium and small terminal variants
+- On-screen QWERTY keyboard that retains the strongest feedback for every used letter
 - Correct handling of repeated letters
 - Dictionary validation without consuming an attempt for invalid guesses
-- Automatic resume of submitted guesses
+- Automatic resume of submitted guesses and completed daily boards
+- Spoiler-free result sharing through the terminal clipboard
 - Daily and all-time win statistics with streaks and guess distribution
 - SQLite persistence embedded with the application
 
@@ -96,6 +118,25 @@ Ensure the selected directory is on your `PATH`, then launch the game with `word
 
 Correct letters are **bold and green**, present letters are <u>underlined and yellow</u>, and absent letters are dim and gray. The legend remains visible so meaning is not conveyed by color alone.
 
+## Sharing
+
+From the completed Result screen, select **Share Result** or press `s`. Wordly copies a spoiler-free grid using the UTC puzzle date and number of attempts:
+
+```text
+WORDLY 2026-10-06 5/6
+
+⬛🟩⬛⬛⬛
+⬛🟨🟨⬛⬛
+⬛⬛⬛⬛⬛
+🟩🟩⬛🟩🟩
+🟩🟩🟩🟩🟩
+
+I played today's Wordly — can you solve it too?
+https://github.com/nikhil25803/wordly
+```
+
+Clipboard copying uses OSC52, supported by most modern terminals.
+
 ## Supported platforms
 
 | Operating system | Architectures | Archive   | Installer              |
@@ -126,16 +167,6 @@ go test -race ./...
 go vet ./...
 go run ./cmd/wordly
 ```
-
-Create a local release snapshot with `goreleaser release --snapshot --clean`.
-
-## Releases
-
-Tagged releases are built for every supported platform by GoReleaser. Each release includes `checksums.txt`; the installation scripts verify the selected archive before extracting it. Archives are available from the [latest release](https://github.com/nikhil25803/wordly/releases/latest).
-
-## Contributing
-
-Bug reports and focused pull requests are welcome through [GitHub Issues](https://github.com/nikhil25803/wordly/issues). Run the development checks above before opening a pull request.
 
 ## License
 
