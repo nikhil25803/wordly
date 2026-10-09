@@ -7,9 +7,8 @@
 [![Go version](https://img.shields.io/github/go-mod/go-version/nikhil25803/wordly?logo=go)](go.mod)
 [![CI](https://github.com/nikhil25803/wordly/actions/workflows/ci.yml/badge.svg)](https://github.com/nikhil25803/wordly/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/nikhil25803/wordly)](https://github.com/nikhil25803/wordly/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/nikhil25803/wordly/total?label=downloads&logo=github)](https://github.com/nikhil25803/wordly/releases)
 [![License](https://img.shields.io/github/license/nikhil25803/wordly)](LICENSE)
-[![Bubble Tea](https://img.shields.io/badge/Bubble_Tea-v2-ff69b4)](https://github.com/charmbracelet/bubbletea)
-[![Lip Gloss](https://img.shields.io/badge/Lip_Gloss-v2-7d56f4)](https://github.com/charmbracelet/lipgloss)
 
 </div>
 
@@ -106,15 +105,15 @@ Ensure the selected directory is on your `PATH`, then launch the game with `word
 
 ## Controls
 
-| Key             | Action                                           |
-| --------------- | ------------------------------------------------ |
-| Letters         | Fill the current five-letter guess               |
-| Backspace       | Remove the last letter                            |
-| Arrow keys, j/k | Navigate menus                                   |
-| Enter           | Submit a guess or select a menu item              |
-| S               | Copy a completed result from the Result screen    |
-| Esc             | Return to the previous screen                     |
-| Ctrl+C          | Quit while preserving submitted guesses          |
+| Key             | Action                                         |
+| --------------- | ---------------------------------------------- |
+| Letters         | Fill the current five-letter guess             |
+| Backspace       | Remove the last letter                         |
+| Arrow keys, j/k | Navigate menus                                 |
+| Enter           | Submit a guess or select a menu item           |
+| S               | Copy a completed result from the Result screen |
+| Esc             | Return to the previous screen                  |
+| Ctrl+C          | Quit while preserving submitted guesses        |
 
 Correct letters are **bold and green**, present letters are <u>underlined and yellow</u>, and absent letters are dim and gray. The legend remains visible so meaning is not conveyed by color alone.
 
