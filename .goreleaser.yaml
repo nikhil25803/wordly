@@ -11,6 +11,9 @@ builds:
     main: ./cmd/wordly
     binary: wordly
 
+    ldflags:
+      - -s -w -X github.com/nikhil25803/wordly/internal.version={{.Version}}
+
     env:
       - CGO_ENABLED=0
 

@@ -9,9 +9,10 @@
     <tspan x="24" dy="30" fill="#5bcb76">Usage:</tspan>
     <tspan x="24" dy="20">  wordly [flags]</tspan>
     <tspan x="24" dy="30" fill="#5bcb76">Flags:</tspan>
-    <tspan x="24" dy="20">  -h, --help    help for wordly</tspan>
-    <tspan x="24" dy="20">      --reset   Reset the current user's game statistics</tspan>
-    <tspan x="24" dy="20">      --stats   Show the current user's game statistics</tspan>
-    <tspan x="24" dy="20">      --words   Show the number of available words</tspan>
+    <tspan x="24" dy="20">  -h, --help      help for wordly</tspan>
+    <tspan x="24" dy="20">      --reset     Reset the current user's game statistics</tspan>
+    <tspan x="24" dy="20">      --stats     Show the current user's game statistics</tspan>
+    <tspan x="24" dy="20">  -v, --version   version for wordly</tspan>
+    <tspan x="24" dy="20">      --words     Show the number of available words</tspan>
   </text>
 </svg>

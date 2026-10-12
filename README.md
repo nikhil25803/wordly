@@ -94,12 +94,13 @@ Ensure the selected directory is on your `PATH`, then launch the game with `word
 
 ## Commands
 
-| Command          | Purpose                                                                      | Example                                                                      |
-| ---------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `wordly --help`  | Show CLI usage and available flags.                                          | <img src="docs/assets/help.svg" alt="wordly help output" width="440">        |
-| `wordly --stats` | Print the current user's completed-game statistics without starting the TUI. | <img src="docs/assets/stats.svg" alt="wordly stats output" width="440">      |
-| `wordly --words` | Print the number of words in the embedded dictionary.                        | <img src="docs/assets/words.svg" alt="wordly word count output" width="440"> |
-| `wordly --reset` | Delete only the current user's guesses and game history.                     | <img src="docs/assets/reset.svg" alt="wordly reset output" width="440">      |
+| Command            | Purpose                                                                      | Example                                                                      |
+| ------------------ | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `wordly --help`    | Show CLI usage and available flags.                                          | <img src="docs/assets/help.svg" alt="wordly help output" width="440">        |
+| `wordly --version` | Show the installed Wordly version.                                           | `wordly version 1.0.0`                                                       |
+| `wordly --stats`   | Print the current user's completed-game statistics without starting the TUI. | <img src="docs/assets/stats.svg" alt="wordly stats output" width="440">      |
+| `wordly --words`   | Print the number of words in the embedded dictionary.                        | <img src="docs/assets/words.svg" alt="wordly word count output" width="440"> |
+| `wordly --reset`   | Delete only the current user's guesses and game history.                     | <img src="docs/assets/reset.svg" alt="wordly reset output" width="440">      |
 
 `--stats`, `--words`, and `--reset` are mutually exclusive. Running `wordly` without a flag opens or resumes today's game.
 
