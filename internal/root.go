@@ -11,15 +11,17 @@ import (
 )
 
 var (
-	words bool
-	reset bool
-	stats bool
+	version = "dev"
+	words   bool
+	reset   bool
+	stats   bool
 )
 
 var rootCmd = &cobra.Command{
 	Use:           "wordly",
 	Short:         "Play the daily Wordle in your terminal",
 	Long:          `Wordly is a local, terminal-based Wordle game with one shared puzzle each UTC day.`,
+	Version:       version,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	RunE: func(cmd *cobra.Command, args []string) error {

@@ -11,6 +11,9 @@ builds:
     main: ./cmd/wordly
     binary: wordly
 
+    ldflags:
+      - -s -w -X github.com/nikhil25803/wordly/internal.version={{.Version}}
+
     env:
       - CGO_ENABLED=0
 
@@ -40,6 +43,22 @@ archives:
 
 checksum:
   name_template: "checksums.txt"
+
+brews:
+  - name: wordly
+    ids:
+      - wordly
+    repository:
+      owner: nikhil25803
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/nikhil25803/wordly"
+    description: "One shared Wordle every UTC day, played entirely in your terminal"
+    license: MIT
+    test: |
+      system bin/"wordly", "--help"
 
 release:
   github:
