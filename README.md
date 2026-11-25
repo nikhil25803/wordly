@@ -65,6 +65,11 @@ The interface adapts its board, keyboard, and statistics to the terminal width. 
 
 ## Install
 
+### Homebrew (macOS)
+```sh
+brew install nikhil25803/tap/wordly
+```
+
 ### macOS, Linux, or Windows Git Bash
 
 ```sh
